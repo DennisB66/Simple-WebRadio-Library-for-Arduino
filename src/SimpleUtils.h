@@ -9,7 +9,7 @@
 #ifndef _SIMPLE_UTILS_H
 #define _SIMPLE_UTILS_H
 
-#define minMax( a, b, c)  min( max( a, b), c)
+#define minMax(A,B,C)     min(max(A,B),C)
 
 #define strLen(A)         (strlen(A)  !=0)
 #define strCmp(A,B)       (strcmp(A,B)==0)
