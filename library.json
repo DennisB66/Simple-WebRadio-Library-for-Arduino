@@ -1,0 +1,22 @@
+{
+  "name": "Simple-WebRadio-Library-for-Arduino",
+  "keywords": "rotary",
+  "description": "Library for an Arduino based webradio playing ICEcast streams",
+  "repository":
+  {
+    "type": "git",
+    "url": ""
+  },
+  "authors":
+  [
+    {
+      "name": "Dennis Buis",
+      "email": "dennis.buis@gmail.com",
+      "url": "",
+      "maintainer": true
+    }
+  ],
+  "version": "0.1",
+  "frameworks": "arduino",
+  "platforms": "*"
+}
