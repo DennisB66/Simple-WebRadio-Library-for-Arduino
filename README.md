@@ -1,2 +1,2 @@
 # Simple-WebRadio-Library-for-Arduino
-Create a simple webradio playing ICYcast streams
+Library for an Arduino based webradio playing ICEcast streams
