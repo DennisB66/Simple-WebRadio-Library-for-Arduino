@@ -1,6 +1,6 @@
 {
   "name": "Simple-WebRadio-Library-for-Arduino",
-  "keywords": "rotary",
+  "keywords": "radio",
   "description": "Library for an Arduino based webradio playing ICYcast streams",
   "repository":
   {
