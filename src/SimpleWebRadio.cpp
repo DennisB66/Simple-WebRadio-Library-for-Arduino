@@ -17,7 +17,7 @@
 VS1053*        player = NULL;                               // radio player object
 EthernetClient client;                                      // HTTP  client object
 
-byte playBuffer[ ICY_BUFF_SIZE];                            // ICYcast stream buffer
+char playBuffer[ ICY_BUFF_SIZE];                            // ICYcast stream buffer
 
 // initialize player
 void SimpleRadio::setPlayer( byte _dreq_pin, byte _cs_pin, byte _dcs_pin, byte _reset_pin)
@@ -33,26 +33,15 @@ void SimpleRadio::setPlayer( byte _dreq_pin, byte _cs_pin, byte _dcs_pin, byte _
 }
 
 // return station name
-char* SimpleRadio::getName( int width)                      // width = available chars on display
+char* SimpleRadio::getName()
 {
-  static char* name = NULL;                                 // name pointer
-  int          leng = max(( width - strlen( _name)) / 2, 0);
-                                                            // leng = # free chars on both sides of _name
-  if ( name) {                                              // if name is alread initialized
-    name = (char*) realloc( name, ( width + 1) * sizeof( char));
-  } else {                                                  // reallocate if needed
-    name = (char*) malloc(        ( width + 1) * sizeof( char));
-  }                                                         // allocate widt + 1 chars
+  return _name;
+}
 
-  if ( width) {                                             // if width is provided
-    memset ( name    , 32, width);                          // clear name with spaces
-    memset ( name + width,  0, 1);                          // terminate name
-    strncpy( name + leng, _name, min( (int) strlen( _name), width));
-                                                            // copy _name to name (centered)
-    return  name;                                           // return centered name
-  } else {
-    return _name;                                           // return standard name
-  }
+// return station genre
+char* SimpleRadio::getType()
+{
+  return _type;
 }
 
 // return station (bit) rate
@@ -120,6 +109,11 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
       dns.getHostByName( host, hostIP);                     // search for host IP
     }
 
+    #ifdef SIMPLE_WEBRADIO_DEBUG_L0                       // print debug info
+    ADDR_( Serial, F( "server = "), hostIP);
+    ATTR ( Serial, F( ":")        , preset->port);
+    #endif
+
     ATTR_( Serial, F( "> Radio station searching: "), preset->url);
     client.connect( hostIP, preset->port);                  // connect to ICYcast server
 
@@ -134,24 +128,13 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
       LINE( Serial, F( "success"));
 
       #ifdef SIMPLE_WEBRADIO_DEBUG_L1                       // print debug info
-      ADDR_( Serial, F( "server = "), hostIP);
-      ATTR ( Serial, F( ":")        , preset->port);
-
       Serial.print  ( F("GET /"));  Serial.print  ( path + 1); Serial.println( F(" HTTP/1.0"));
       Serial.print  ( F("Host: ")); Serial.println( host    );
       Serial.println( F("Accept: */*"));
       Serial.println();
-
-      LINE( Serial, F( "Radio station connection succes"));
-      LINE( Serial, F(""));
       #endif
     } else {
       LINE( Serial, F(  " > failure"));
-
-      #ifdef SIMPLE_WEBRADIO_DEBUG_L1
-      LINE( Serial, F( "Radio station connection failed"));
-      LINE( Serial, F(""));
-      #endif
     }
 
     if ( path) {                                            // if url has been changed (by replacing '/' by '\0')
@@ -173,9 +156,9 @@ void SimpleRadio::stopICYcastStream()
 void SimpleRadio::readICYcastStream()
 {
   if ( client.available()) {                                // if ICYcast stream data available
-    _receivedSize = client.read( playBuffer, ICY_BUFF_SIZE);
+    _receivedSize = client.read((uint8_t*) playBuffer, ICY_BUFF_SIZE);
                                                             // read ICYcast stream data from server
-    #ifdef SIMPLE_WEBRADIO_DEBUG_L3
+    #ifdef SIMPLE_WEBRADIO_DEBUG_L2
     ATTR( Serial, F( "read buffer = "), _receivedSize);
     #endif
   }
@@ -185,16 +168,28 @@ void SimpleRadio::readICYcastStream()
 void SimpleRadio::hndlICYcastStream()
 {
   if ( _receivedHead == false) {                            // if ICYcast header not processed
-    _findICYcastStream( PSTR( "icy-name:"), _name, PRESET_NAME_LENGTH);
-    _findICYcastStream( PSTR( "icy-br:"  ), _rate, PRESET_RATE_LENGTH);
+    _findICYcastStream( PSTR( "icy-name:" ), _name, PRESET_NAME_LENGTH);
+    _findICYcastStream( PSTR( "icy-genre:"), _type, PRESET_NAME_LENGTH);
+    _findICYcastStream( PSTR( "icy-br:"   ), _rate, PRESET_RATE_LENGTH);
                                                             // find station name + bit rate
     if ( _findICYcastStream( PSTR( "\r\n\r\n" ))) {         // find end of ICY cast header
       _receivedHead = true;                                 // true = header received
       _receivedDisp = true;                                 // true = station data available
     }
+
+    #ifdef SIMPLE_WEBRADIO_DEBUG_L3
+    for ( int i = 0; i < (int) _receivedSize; i++) {
+      Serial.print( playBuffer[ i]);
+
+      if (( playBuffer[ i    ] == '\r') &&
+          ( playBuffer[ i + 1] == '\n') &&
+          ( playBuffer[ i + 2] == '\r') &&
+          ( playBuffer[ i + 3] == '\n')) break;
+    }
+    #endif
   } else {
     if ( player) {                                          // if player object created
-      player->playChunk( playBuffer, _receivedSize);        // play ICYcast stream
+      player->playChunk((uint8_t*) playBuffer, _receivedSize);        // play ICYcast stream
     }
   }
 

@@ -1,15 +1,13 @@
 #include <Arduino.h>
 #include <EEPROM.h>
+#include <Wire.h>
+#include "LiquidCrystal_I2C.h"
 #include "SimpleWebRadio.h"
 #include "SimpleControl.h"
 #include "SimpleWebServer.h"
 #include "SimpleUtils.h"
-#include <PCD8544.h>
 
-#define DEBUG_MODE
-
-#define SERVER_NAME "WebRadio01"
-#define SERVER_PORT 80
+#define NO_DEBUG_MODE
 
 byte macaddr[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };    // mac address
 byte iplocal[] = { 192, 168,   1,  62 };                    // lan ip (e.g. "192.168.1.178")
@@ -17,14 +15,14 @@ byte gateway[] = { 192, 168,   1,   1 };                    // router gateway
 byte subnet[]  = { 255, 255, 255,   0 };                    // subnet mask
 byte DNS[]     = {   8,   8,   8,   8 };                    // DNS server (Google)
 
-SimpleRadio     radio;                                      // radio     object  (to play ICYcast streams)
-SimpleWebServer myServer( SERVER_PORT);                     // server    object (to respond on API calls)
-SimpleScheduler scheduler( 1000);                           // scheduler object (to process rotary + button handling)
-SimpleRotary    rotary( A4, A5);                            // rotary    object (to change preset + volume)
-SimpleButton    button( A3, false);                         // button    object (to switch between preset + volume setting)
-Stopwatch       stopwatch( 10000);                          // stopwatch object (set for 10 sec)
-PCD8544         lcd( 3, 4, 5, 9, A0);                       // lcd       object (to display station info)
-// CLK, DI, DS, RESET, ENABLE
+SimpleRadio       radio;                                    // radio     object  (to play ICYcast streams)
+SimpleWebServer   myServer( 80);                            // server    object (to respond on API calls)
+SimpleScheduler   scheduler( 1000);                         // scheduler object (to process rotary + button handling)
+SimpleRotary      rotary( A1, A2);                          // rotary    object (to change preset + volume)
+SimpleButton      button( A0, false);                       // button    object (to switch between preset + volume setting)
+Stopwatch         stopwatch( 750);                         // stopwatch object (set for 1 sec)
+LiquidCrystal_I2C lcd( 0x3F, 20, 4);
+
 presetInfo presetData;                                      // preset    object (to hold station url or IP data)
 byte       preset = 0;                                      // current preset playing
 byte       volume = 0;                                      // current volume playing
@@ -34,16 +32,18 @@ void saveSettings();                                        // save preset + vol
 bool copyPreset( char*);                                    // copy url to presetData (but not to EEPROM)
 bool loadPreset( int i);                                    // load presetData from EEPROM slot i
 bool savePreset( int i, char* = NULL);                      // save presetData to   EERPOM slot i
-void showStatus( int = 0);                                  // show preset + volume (on lcd)
+void showStatus();                                          // show preset + volume (on lcd)
 
 void setup()
 {
 	Serial.begin( 9600);
 
-  LINE( Serial, F( "--------------------"));                // show header
-	LINE( Serial, F( "- Arduino WebRadio -"));
-  LINE( Serial, F( "--------------------"));
+  #ifdef DEBUG_MODE
+  LINE( Serial, F( "-------------------------"));           // show header
+	LINE( Serial, F( "- Arduino WebRadio V0.6 -"));
+  LINE( Serial, F( "-------------------------"));
   LINE( Serial, F("#"));
+  #endif
 
   Ethernet.begin( macaddr, iplocal, DNS, gateway, subnet);
   myServer.begin();                                         // starting webserver
@@ -65,11 +65,14 @@ void setup()
   scheduler.attachHandler( rotary.handle);                  // include rotary in scheduler
   scheduler.attachHandler( button.handle);                  // include button in scheduler
   scheduler.start();                                        // start scheduler
-  lcd.begin(  84, 48);                                      // initialize lcd screen
+
+  lcd.begin();                                              // LCD Initialization
 
   showStatus();                                             // show preset + volume
 
-  LINE( Serial, F("# ready"));                              // show ready
+  #ifdef DEBUG_MODE
+  LINE( Serial, F( "# ready"));
+  #endif
 }
 
 void loop()
@@ -95,30 +98,36 @@ void loop()
 
     if (  myServer.path( 0, "presets")) {                   // if presets addressed
       if (( myServer.getMethod() == HTTP_PUT) && chn && url) {
-        code = savePreset( atoi( chn) - 1, url) ? 200 : 400;
-      }                                                     // save url in EEPROM
+        savePreset( atoi( chn) - 1, url);                   // save url in EEPROM
+        code = 200;
+      }
     }
 
     if (  myServer.path( 0, "webradio")) {                  // if player addressed
       if (( myServer.getMethod() == HTTP_GET) && !chn && url) {
-        code = copyPreset( url) ? 200 : 400;                // load url (but don't store in EEPROM)
+        copyPreset( url);                                   // load url (but don't store in EEPROM)
+        code = 200;
       }
 
       if (( myServer.getMethod() == HTTP_GET) && chn && !url) {
-        code = loadPreset( preset = atoi( chn) - 1) ? 200 : 400;
-      }                                                     // load preset from EEPROM
+        loadPreset( preset = atoi( chn) - 1);               // load preset from EEPROM
+        code = 200;
+      }
 
       if (( myServer.getMethod() == HTTP_GET) && vol) {
-        radio.setVolume( 100 - ( volume = atoi( vol))); code = 200;
-      }                                                     // set player volume
+        radio.setVolume( volume = 100 - atoi( vol));         // set player volume
+        code = 200;
+      }
 
       if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "play")) {
         radio.stopICYcastStream();
-        code = radio.openICYcastStream( &presetData) ? 200 : 400;
-      }                                                     // play url in memory
+        radio.openICYcastStream( &presetData);             // play url in memory
+        code = 200;
+      }
 
       if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "stop")) {
-        radio.stopICYcastStream(); code = 200;              // stop player
+        radio.stopICYcastStream();                         // stop player
+        code = 200;
       }
     }
 
@@ -126,13 +135,17 @@ void loop()
   }
 
   if ( radio.available()) {                                 // if playing
-    LCD1( lcd,  0, 0, radio.getName( 15));                  // show station name
-    LCD3( lcd, 27, 1, F( "("), radio.getRate(), F( ")"));   // show station bit rate
+    LCD1( lcd,  0, 0, space( radio.getName(), 20, true));   // show station name
+    LCD1( lcd,  0, 1, space( radio.getType(), 20, true));   // show station genre
+    LCD2( lcd,  6, 2, F( "Rate "), radio.getRate());        // show station bit rate
 
+    #ifdef DEBUG_MODE
     ATTR_( Serial, F( "# Station "), radio.getName());
+    ATTR_( Serial, F( " / type = "), radio.getType());
     ATTR ( Serial, F( " / rate = "), radio.getRate());
+    #endif
 
-    showStatus( mode);                                      // show preset + volume
+    //showStatus( mode);                                      // show preset + volume
   }
 
   if ( button.available()) {                                // if button processed
@@ -148,7 +161,6 @@ void loop()
         rotary.setPosition( volume);                        // set proper rotary position (= last volume)
         break;
     }
-    showStatus( mode);                                      // show preset + volume
   }
 
   if ( rotary.changed()) {                                  // if rotary turned
@@ -163,10 +175,9 @@ void loop()
       radio.setVolume( volume);                             // read rotary position
       break;
     }
-    showStatus( mode);                                      // show preset + volume
   }
 
-  stopwatch.check( saveSettings);                           // save Settings every 10 sec
+  stopwatch.check( showStatus);                           // save Settings every 10 sec
 }
 
 // load preset from EEPROM
@@ -181,6 +192,10 @@ void saveSettings()
 {
   EEPROM.put( 0, preset);                                   // save preset to EEPROM
   EEPROM.put( 1, volume);                                   // save preset to EEPROM
+
+  #ifdef DEBUG_MODE
+  LINE( Serial, F("# settings saved"));
+  #endif
 }
 
 // copy station url to presetData (but not to EEPROM)
@@ -208,13 +223,13 @@ bool loadPreset( int preset)
 }
 
 // save presetData to EEPROM
-bool savePreset( int preset, char* url)
+bool savePreset( int p, char* url)
 {
   copyPreset( url);                                         // copy url (if provided)
 
-  if (( preset >= 0) && ( preset < PRESET_MAX)) {           // if valid preset
-    EEPROM.put( 2 + preset * sizeof( presetInfo), presetData);
-                                                            // save presetData from EEPROM
+  if (( p >= 0) && ( p < PRESET_MAX)) {                     // if valid preset
+    EEPROM.put( 2 + p * sizeof( presetInfo), presetData);   // save presetData from EEPROM
+
     return true;                                            // return success
   } else {
     return false;                                           // return failure
@@ -222,11 +237,24 @@ bool savePreset( int preset, char* url)
 }
 
 // show preset + volume
-void showStatus( int mode)
+void showStatus()
 {
-  LCD2( lcd, 11, 3, F( "preset =  "), preset + 1  );        // show preset on LCD
-  LCD2( lcd, 11, 4, F( "volume = " ), 100 - volume);        // show volume on LCD
+  static int count = 0;
 
-  ATTR_( Serial, (mode == 0) ? F(  "> [preset] = ") : F(  ">  preset  = "),       preset + 1);
-  ATTR ( Serial, (mode == 1) ? F( " / [volume] = ") : F( " /  volume  = "), 100 - volume    );
+  if ( count) {
+    saveSettings();
+  }
+
+  LCD1( lcd,  3, 2, count % 2 ? F( "-") : F( " "));
+  LCD1( lcd, 16, 2, count % 2 ? F( "-") : F( " "));
+  LCD2( lcd,  0, 3, F( "CHANNEL = "), preset + 1  );          // show preset on LCD
+  LCD2( lcd, 12, 3, F( "VOL = " ), 100 - volume);          // show volume on LCD
+
+  #ifdef DEBUG_MODE
+  ATTR_( Serial, F(  "> preset] = "),       preset + 1);
+  ATTR ( Serial, F( " / volume] = "), 100 - volume    );
+  #endif
+
+  count +=  1;
+  count %= 10;
 }
