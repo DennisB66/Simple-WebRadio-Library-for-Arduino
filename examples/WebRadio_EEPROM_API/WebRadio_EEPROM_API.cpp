@@ -32,6 +32,7 @@ void saveSettings();                                        // save preset + vol
 bool copyPreset( char*);                                    // copy url to presetData (but not to EEPROM)
 bool loadPreset( int i);                                    // load presetData from EEPROM slot i
 bool savePreset( int i, char* = NULL);                      // save presetData to   EERPOM slot i
+void initStatus();                                          //
 void showStatus();                                          // show preset + volume (on lcd)
 
 void setup()
@@ -84,9 +85,8 @@ void loop()
     radio.hndlICYcastStream();                              // process next stream data
   } else {
     radio.stopICYcastStream();                              // stop radio
+    initStatus();
     radio.openICYcastStream( &presetData);                  // open new ICYcast stream
-
-    delay(2000);                                            // wait a short while after connecting
   }
 
   if ( myServer.available()) {                              // check incoming HTTP request
@@ -121,6 +121,7 @@ void loop()
 
       if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "play")) {
         radio.stopICYcastStream();
+        initStatus();
         radio.openICYcastStream( &presetData);             // play url in memory
         code = 200;
       }
@@ -132,20 +133,6 @@ void loop()
     }
 
     myServer.response( code);                               // return response (headers + code)
-  }
-
-  if ( radio.available()) {                                 // if playing
-    LCD1( lcd,  0, 0, space( radio.getName(), 20, true));   // show station name
-    LCD1( lcd,  0, 1, space( radio.getType(), 20, true));   // show station genre
-    LCD2( lcd,  6, 2, F( "Rate "), radio.getRate());        // show station bit rate
-
-    #ifdef DEBUG_MODE
-    ATTR_( Serial, F( "# Station "), radio.getName());
-    ATTR_( Serial, F( " / type = "), radio.getType());
-    ATTR ( Serial, F( " / rate = "), radio.getRate());
-    #endif
-
-    //showStatus( mode);                                      // show preset + volume
   }
 
   if ( button.available()) {                                // if button processed
@@ -236,13 +223,28 @@ bool savePreset( int p, char* url)
   }
 }
 
+void initStatus()
+{
+  LCD1( lcd, 0, 0, space( "< ---------- >", 20, true));
+  LCD1( lcd, 0, 1, space( ""              , 20, true));
+}
+
+
 // show preset + volume
 void showStatus()
 {
   static int count = 0;
 
-  if ( count) {
-    saveSettings();
+  if ( radio.available()) {                                 // if playing
+    LCD1( lcd,  0, 0, space( radio.getName(), 20, true));   // show station name
+    LCD1( lcd,  0, 1, space( radio.getType(), 20, true));   // show station genre
+    LCD2( lcd,  6, 2, F( "Rate "), radio.getRate());        // show station bit rate
+
+    #ifdef DEBUG_MODE
+    ATTR_( Serial, F( "# Station "), radio.getName());
+    ATTR_( Serial, F( " / type = "), radio.getType());
+    ATTR ( Serial, F( " / rate = "), radio.getRate());
+    #endif
   }
 
   LCD1( lcd,  3, 2, count % 2 ? F( "-") : F( " "));
@@ -254,6 +256,10 @@ void showStatus()
   ATTR_( Serial, F(  "> preset] = "),       preset + 1);
   ATTR ( Serial, F( " / volume] = "), 100 - volume    );
   #endif
+
+  if ( count) {
+    saveSettings();
+  }
 
   count +=  1;
   count %= 10;
