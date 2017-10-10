@@ -103,19 +103,17 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
 
     IPAddress hostIP( preset->ip4);                         // extract host IP from presetData
 
-    if ( strlen( host) > 0) {                               // if host Found
-      DNSClient dns;                                        // initialize DNS object
-      dns.begin( Ethernet.dnsServerIP());                   // attach default DNS server
-      dns.getHostByName( host, hostIP);                     // search for host IP
-    }
-
     #ifdef SIMPLE_WEBRADIO_DEBUG_L0                       // print debug info
     ADDR_( Serial, F( "server = "), hostIP);
     ATTR ( Serial, F( ":")        , preset->port);
     #endif
 
     ATTR_( Serial, F( "> Radio station searching: "), preset->url);
-    client.connect( hostIP, preset->port);                  // connect to ICYcast server
+    if ( strlen( host) > 0) {
+      client.connect( host  , preset->port);                // connect to ICYcast server
+    } else {
+      client.connect( hostIP, preset->port);                // connect to ICYcast server
+    }
 
     if ( client.connected()) {                              // if connection is successful
       LINE_( Serial, F( " > "));

@@ -13,7 +13,6 @@
 
 #include "Ethernet.h"
 #include <SPI.h>
-#include "Dns.h"
 #include <VS1053.h>
 #include <TimerOne.h>
 
