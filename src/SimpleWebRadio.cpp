@@ -80,7 +80,7 @@ bool SimpleRadio::available()
 // open ICYcast stream
 bool SimpleRadio::openICYcastStream( presetInfo* preset)
 {
-  strcpy_P( _name, PSTR( "< ------ >"));                    // initialize station name
+  strcpy_P( _name, PSTR( "< ---------- >"));                    // initialize station name
   strcpy_P( _rate, PSTR( "###"));                           // initialize station bit rate
 
   _receivedHead = false;                                    // false = ICYcast header not processed

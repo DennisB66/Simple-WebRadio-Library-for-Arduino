@@ -84,8 +84,6 @@ void loop()
     radio.readICYcastStream();                              // receive next stream data
     radio.hndlICYcastStream();                              // process next stream data
   } else {
-    radio.stopICYcastStream();                              // stop radio
-    initStatus();
     radio.openICYcastStream( &presetData);                  // open new ICYcast stream
   }
 
@@ -120,8 +118,8 @@ void loop()
       }
 
       if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "play")) {
-        radio.stopICYcastStream();
         initStatus();
+        radio.stopICYcastStream();
         radio.openICYcastStream( &presetData);             // play url in memory
         code = 200;
       }
@@ -153,6 +151,7 @@ void loop()
   if ( rotary.changed()) {                                  // if rotary turned
     switch ( mode) {
     case 0 :                                                // allow preset selection
+      initStatus();
       radio.stopICYcastStream();                            // stop radio playing
       preset = rotary.position();                           // read rotaty position
       loadPreset( preset);                                  // read preset from EEPROM
