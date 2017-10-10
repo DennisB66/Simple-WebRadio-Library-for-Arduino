@@ -12,9 +12,9 @@
 #include <Arduino.h>
 
 #include "Ethernet.h"
-#include <Dns.h>
-#include <VS1053.h>
 #include <SPI.h>
+#include "Dns.h"
+#include <VS1053.h>
 #include <TimerOne.h>
 
 #define PRESET_MAX 8                                        // max presets
