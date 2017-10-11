@@ -70,6 +70,12 @@ bool SimpleRadio::connected()
   return client.connected();                                // true = connected to ICYcast server
 }
 
+// true = station connected
+bool SimpleRadio::receiving()
+{
+  return _received;                                // true = connected to ICYcast server
+}
+
 // true = station data available
 bool SimpleRadio::available()
 {
@@ -123,7 +129,7 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
       client.println( F( "Accept: */*"));
       client.println();                                     // send ICYcast streaming request
 
-      LINE( Serial, F( "success"));
+      LINE( Serial, F( "success!"));
 
       #ifdef SIMPLE_WEBRADIO_DEBUG_L1                       // print debug info
       Serial.print  ( F("GET /"));  Serial.print  ( path + 1); Serial.println( F(" HTTP/1.0"));
@@ -153,9 +159,13 @@ void SimpleRadio::stopICYcastStream()
 // recieve ICYcast stream data
 void SimpleRadio::readICYcastStream()
 {
+  static Stopwatch sw( 5000); if (sw.check()) _received = false;
+
   if ( client.available()) {                                // if ICYcast stream data available
     _receivedSize = client.read((uint8_t*) playBuffer, ICY_BUFF_SIZE);
                                                             // read ICYcast stream data from server
+    _received = true; sw.reset();
+
     #ifdef SIMPLE_WEBRADIO_DEBUG_L2
     ATTR( Serial, F( "read buffer = "), _receivedSize);
     #endif
