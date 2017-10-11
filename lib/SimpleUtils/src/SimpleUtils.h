@@ -31,7 +31,7 @@ private:
   unsigned long _ticks;
 };
 
-char* fill( char*, int, bool = false);
+const char* fill( const char*, int, bool = false);
 
 // various print macros
 

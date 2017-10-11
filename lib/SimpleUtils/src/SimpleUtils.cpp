@@ -37,7 +37,7 @@ bool Stopwatch::check( StopwatchFunc f)
 }
 
 // padding strings
-char* fill( char* s, int w, bool c)           // width = available chars on display
+const char* fill( const char* s, int w, bool c)           // width = available chars on display
 {
   static char* line = NULL;                                 // name pointer
   int          size = min((int) strlen( s), w);
