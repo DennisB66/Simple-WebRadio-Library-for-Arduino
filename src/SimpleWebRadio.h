@@ -18,11 +18,13 @@
 
 #define PRESET_MAX 8                                        // max presets
 
-#define PRESET_PATH_LENGTH 64                               // max path length
-#define PRESET_NAME_LENGTH 20                               // max name length
-#define PRESET_RATE_LENGTH  4                               // max rate length
+#define PRESET_PATH_LENGTH  64                              // max path length
+#define PRESET_NAME_LENGTH  20                              // max name length
+#define PRESET_RATE_LENGTH   4                              // max rate length
+#define PRESET_SIZE_LENGTH   8                              // max size length
+#define PRESET_META_LENGTH 128                              // max name length
 
-#define ICY_BUFF_SIZE     400                               // play buffer length.
+#define ICY_BUFF_SIZE      400                              // play buffer length.
 
 struct presetInfo {
   char url[PRESET_PATH_LENGTH];                             // preset HTTP url
@@ -34,12 +36,13 @@ class SimpleRadio {                                         // SimpleRadio objec
 public:
   void setPlayer( uint8_t, uint8_t, uint8_t, uint8_t);      // initialize player
 
-  char* getName();                                          // return station name
-  char* getType();                                          // return station genre
-  char* getRate();                                          // return station bit rate
+  char*         getName();                                  // return station name
+  char*         getType();                                  // return station genre
+  char*         getRate();                                  // return station bit rate
+  bool          isAlive();                                  // return station bit rate
 
-  void         setVolume( int);                             // set player volume
-  unsigned int getVolume();                                 // get player volume
+  void          setVolume( int);                             // set player volume
+  unsigned int  getVolume();                                 // get player volume
 
   bool connected();                                         // true = station connected
   bool available();                                         // true = station data available
@@ -48,23 +51,30 @@ public:
   bool openICYcastStream( presetInfo* preset);              // open ICYcast stream
   void stopICYcastStream();                                 // stop ICYcast stream
   void readICYcastStream();                                 // recieve ICYcast stream data
+  void hndlICYcastHeader();                                 // process ICYcast stream data
   void hndlICYcastStream();                                 // process ICYcast stream data
 
 private:
-  int           _volume;                                    // player volume
+  int      _volume;                                         // player volume
 
-  char          _name[ PRESET_NAME_LENGTH];                 // station name
-  char          _type[ PRESET_NAME_LENGTH];                 // station genre
-  char          _rate[ PRESET_RATE_LENGTH];                 // station bit rate
+  char     _name[ PRESET_NAME_LENGTH];                      // stream name
+  char     _type[ PRESET_NAME_LENGTH];                      // stream genre
+  char     _rate[ PRESET_RATE_LENGTH];                      // stream bit rate
+  char     _meta[ PRESET_META_LENGTH];                      // stream bit rate
 
-  bool          _receivedHead;                              // true = station header processed
-  bool          _receivedDisp;                              // true = station meta data available
-  bool          _receivedData;                              // total size of received ICYcast stream data
-  unsigned long _receivedSize;                              // last  size of received ICYcast stream data
-  bool          _received;
+  unsigned int _interval;                                   //
+  unsigned int _dataLeft;                                   // total size of received ICYcast stream data
+  unsigned int _dataNext;                                   // last  size of received ICYcast stream data
+  unsigned int _dataLast;
+
+  bool     _receivedHead;                                   // true = station header processed
+  bool     _receivedDisp;                                   // true = station meta data available
+  bool     _receivedBeat;                                   // true = station meta data available
+  bool     _pause;
 
   bool _findICYcastStream( const char*);                    // find label in ICYcast stream data
   bool _findICYcastStream( const char*, char*, int);        // find value in ICYcast stream data
+  void _playICYcastStream( char*, unsigned int);
 };
 
 #endif

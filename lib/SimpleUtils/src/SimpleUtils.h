@@ -14,9 +14,10 @@
 #define minMax(A,B,C)     min(max(A,B),C)
 #define strLen(A)         (strlen(A)  !=0)
 #define strCmp(A,B)       (strcmp(A,B)==0)
-#define strCpy(D,S,L)     strncpy(D,S,L);D[L]=0
+#define strCpy(D,S,L)     strncpy(D,S,L-1);D[L-1]=0
 #define strClr(D)         D[0]=0
 
+char* shiftL( char*, char, char = 0);
 
 typedef void ( *StopwatchFunc)();
 

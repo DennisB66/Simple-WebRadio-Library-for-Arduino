@@ -3,6 +3,7 @@
 #include <EEPROM.h>
 #include "SimpleWebRadio.h"
 #include "SimpleUtils.h"
+#include "SimplePrint.h"
 
 #include <Ethernet.h>
 #include <VS1053.h>
@@ -46,9 +47,9 @@ void EEPROM2Preset()
 void setup()
 {
   Serial.begin( 9600);    				// Start serial port with 57600 bits per seconds
-  PRINT_LINE();
-  PRINT_LINE( F( "Arduino WebRadio Preset to EEPROM V0.2"));
-  PRINT_LINE();
+  LINE( Serial, F( ""));
+  LINE( Serial, F( "Arduino WebRadio Preset to EEPROM V0.2"));
+  LINE( Serial, F( ""));
 
   preset2EEPROM();
 
@@ -56,15 +57,15 @@ void setup()
 
   EEPROM2Preset();
 
-  PRINT_ATTR( F( "Preset = "), preset);
-  PRINT_ATTR( F( "Volume = "), volume);
-  PRINT_LINE();
+  ATTR( Serial, F( "Preset = "), preset);
+  ATTR( Serial, F( "Volume = "), volume);
+  LINE( Serial, F( ""));
 
   for ( int i = 0; i < PRESET_MAX; i++) {
-    PRINT_ATTR( F( "Preset url = "), presetList[ i].url);
+    ATTR( Serial, F( "Preset url = "), presetList[ i].url);
   }
 
-  PRINT_LINE();
+  LINE( Serial, F( ""));
 }
 
 void loop()

@@ -8,6 +8,23 @@
 
 #include "SimpleUtils.h"
 
+char* shiftL( char* s, char a, char b)
+{
+  char* ptr_s = strchr ( s    , a);
+  char* ptr_e = strrchr( ptr_s, b ? b : a);
+
+  if ( ptr_s == NULL) return s;
+  if ( ptr_e == NULL) return s;
+
+  *ptr_e = 0;
+
+  for ( int i = 0; i < ptr_e - ptr_s; i++) {
+    s[i] = ptr_s[i + 1];
+  }
+
+  return s;
+}
+
 Stopwatch::Stopwatch( unsigned long l)
 {
   lapse( l);

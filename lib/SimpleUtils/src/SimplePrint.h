@@ -17,10 +17,10 @@
 #define ATTR_(S,L,V)            S.print(L);S.print  (V)
 #define ATTR(S,L,V)             S.print(L);S.println(V)
 
-#define ATTQ_(S,L,V)            S.print(L);S.print  (F('\''));\
-                                S.print(V);S.print  (F('\''))
-#define ATTQ(S,L,V)             S.print(L);S.print  (F('\''));\
-                                S.print(V);S.println(F('\''))
+#define ATTQ_(S,L,V)            S.print(L);S.print  (F('-'));\
+                                S.print(V);S.print  (F('-'))
+#define ATTQ(S,L,V)             S.print(L);S.print  (F('-'));\
+                                S.print(V);S.println(F('-'))
 
 #define ADDR_(S,L,IP)           S.print(L);     S.print  (IP[0]);\
                                 S.print(F("."));S.print  (IP[1]);\

@@ -6,8 +6,9 @@
 #include "SimpleControl.h"
 #include "SimpleWebServer.h"
 #include "SimpleUtils.h"
+#include "SimplePrint.h"
 
-#define NO_DEBUG_MODE
+#define DEBUG_MODE
 
 byte macaddr[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };    // mac address
 byte iplocal[] = { 192, 168,   1,  62 };                    // lan ip (e.g. "192.168.1.178")
@@ -37,7 +38,7 @@ void showStatus();                                          // show preset + vol
 
 void setup()
 {
-	Serial.begin( 9600);
+	Serial.begin( 115200);
 
   #ifdef DEBUG_MODE
   LINE( Serial, F( "-------------------------"));           // show header
@@ -46,15 +47,14 @@ void setup()
   LINE( Serial, F("#"));
   #endif
 
-  delay(1000);
   Ethernet.begin( macaddr, iplocal, DNS, gateway, subnet);
-  delay(1000);
-  myServer.begin();                                         // starting webserver
 
   #ifdef DEBUG_MODE
   ATTR_( Serial, F( "# server listening at "), Ethernet.localIP());
   ATTR ( Serial, F( ":")                     , myServer.getPort());
   #endif
+
+  myServer.begin();                                         // starting webserver
 
   loadSettings();                                           // load preset + volume from EEPROM
   loadPreset( preset);                                      // load presetData from EEPROM slot indicated by preset
@@ -69,14 +69,22 @@ void setup()
   scheduler.attachHandler( button.handle);                  // include button in scheduler
   scheduler.start();                                        // start scheduler
 
-  lcd.begin();                                              // LCD Initialization
+  lcd.begin();
+  //lcd.noBacklight();
+  //lcd.noDisplay();                                            // LCD Initialization
 
   initStatus();
   showStatus();                                             // show preset + volume
 
   #ifdef DEBUG_MODE
-  LINE( Serial, F( "# ready"));
+  LINE( Serial, F( "#"));
+  LINE( Serial, F( "# hold button to switch on"));
   #endif
+
+  while ( button.read() != BUTTON_NORMAL);
+
+  //lcd.display();
+  lcd.backlight();
 }
 
 void loop()
@@ -87,7 +95,10 @@ void loop()
     radio.readICYcastStream();                              // receive next stream data
     radio.hndlICYcastStream();                              // process next stream data
   } else {
+    radio.stopICYcastStream();                              // open new ICYcast stream
     radio.openICYcastStream( &presetData);                  // open new ICYcast stream
+    radio.readICYcastStream();                              // receive next stream data
+    radio.hndlICYcastHeader();                              // process next stream data
   }
 
   if ( myServer.available()) {                              // check incoming HTTP request
@@ -182,16 +193,16 @@ void saveSettings()
   EEPROM.put( 0, preset);                                   // save preset to EEPROM
   EEPROM.put( 1, volume);                                   // save preset to EEPROM
 
-  #ifdef DEBUG_MODE
-  LINE( Serial, F("# settings saved"));
-  #endif
+  // #ifdef DEBUG_MODE
+  // LINE( Serial, F("# settings saved"));
+  // #endif
 }
 
 // copy station url to presetData (but not to EEPROM)
 bool copyPreset( char* url)
 {
   if ( url) {                                               // if valid url
-    strCpy( presetData.url, url, PRESET_PATH_LENGTH - 1);   // copy url to presetData
+    strCpy( presetData.url, url, PRESET_PATH_LENGTH);       // copy url to presetData
 
     return true;                                            // return success
   } else {
@@ -238,7 +249,8 @@ void initStatus()
 void showStatus()
 {
   static char label[2] = { ' ', '-'};
-  static int  count = 0;
+  static int  cnt = 0;
+  static int  len = 0;
 
   if ( radio.available()) {                                 // if playing
     LCD1( lcd,  0, 0, fill( radio.getName(), 20, true));    // show station name
@@ -246,26 +258,27 @@ void showStatus()
     LCD1( lcd, 13, 2, fill( radio.getRate(),  3));          // show station bit rate
 
     #ifdef DEBUG_MODE
-    ATTR_( Serial, F( "# Station "), radio.getName());
+    ATTR_( Serial, F(  "# name = "), radio.getName());
     ATTR_( Serial, F( " / type = "), radio.getType());
     ATTR ( Serial, F( " / rate = "), radio.getRate());
     #endif
+
+    len = max( 0, strlen( radio.getType()) - 20);
   }
 
-  LCD1( lcd,  2, 2, radio.receiving() ? label[count % 2] : label[0]);
-  LCD1( lcd, 17, 2, radio.receiving() ? label[count % 2] : label[0]);
+  LCD1( lcd,  2, 2, radio.receiving() ? label[cnt % 2] : label[0]);
+  LCD1( lcd, 17, 2, radio.receiving() ? label[cnt % 2] : label[0]);
   LCD1( lcd, 10, 3, preset + 1  );                          // show preset on LCD
   LCD1( lcd, 18, 3, 100 - volume);                          // show volume on LCD
 
-  #ifdef DEBUG_MODE
-  ATTR_( Serial, F(  "> preset] = "),       preset + 1);
-  ATTR ( Serial, F( " / volume] = "), 100 - volume    );
-  #endif
+  if ( len > 0) {
+    LCD1( lcd,  0, 1, fill( radio.getType() + minMax( cnt - 2, 0, len), 20));
+  }
 
-  if ( count) {
+  if ( cnt % 10 == 0) {
     saveSettings();
   }
 
-  count +=  1;
-  count %= 10;
+  cnt %= ( len + 4); cnt++;
+  //cnt += 1;
 }
