@@ -31,7 +31,7 @@ private:
   unsigned long _ticks;
 };
 
-char* space( char*, int, bool);
+char* fill( char*, int, bool = false);
 
 // various print macros
 

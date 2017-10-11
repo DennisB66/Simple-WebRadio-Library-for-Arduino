@@ -43,6 +43,7 @@ public:
 
   bool connected();                                         // true = station connected
   bool available();                                         // true = station data available
+  bool receiving();
 
   bool openICYcastStream( presetInfo* preset);              // open ICYcast stream
   void stopICYcastStream();                                 // stop ICYcast stream
@@ -60,6 +61,7 @@ private:
   bool          _receivedDisp;                              // true = station meta data available
   bool          _receivedData;                              // total size of received ICYcast stream data
   unsigned long _receivedSize;                              // last  size of received ICYcast stream data
+  bool          _received;
 
   bool _findICYcastStream( const char*);                    // find label in ICYcast stream data
   bool _findICYcastStream( const char*, char*, int);        // find value in ICYcast stream data

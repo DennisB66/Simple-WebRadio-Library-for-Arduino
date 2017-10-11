@@ -46,7 +46,9 @@ void setup()
   LINE( Serial, F("#"));
   #endif
 
+  delay(1000);
   Ethernet.begin( macaddr, iplocal, DNS, gateway, subnet);
+  delay(1000);
   myServer.begin();                                         // starting webserver
 
   #ifdef DEBUG_MODE
@@ -69,6 +71,7 @@ void setup()
 
   lcd.begin();                                              // LCD Initialization
 
+  initStatus();
   showStatus();                                             // show preset + volume
 
   #ifdef DEBUG_MODE
@@ -224,20 +227,23 @@ bool savePreset( int p, char* url)
 
 void initStatus()
 {
-  LCD1( lcd, 0, 0, space( "< ---------- >", 20, true));
-  LCD1( lcd, 0, 1, space( ""              , 20, true));
+  LCD1( lcd,  0,  0, fill( "< ---------- >", 20, true));
+  LCD1( lcd,  0,  1, fill( ""              , 20, true));
+  LCD1( lcd,  4,  2, F( "Bit Rate" ));
+  LCD1( lcd,  0,  3, F( "CHANNEL ="));          // show preset on LCD
+  LCD1( lcd, 12,  3, F( "VOL ="    ));          // show volume on LCD
 }
-
 
 // show preset + volume
 void showStatus()
 {
-  static int count = 0;
+  static char label[2] = { ' ', '-'};
+  static int  count = 0;
 
   if ( radio.available()) {                                 // if playing
-    LCD1( lcd,  0, 0, space( radio.getName(), 20, true));   // show station name
-    LCD1( lcd,  0, 1, space( radio.getType(), 20, true));   // show station genre
-    LCD2( lcd,  6, 2, F( "Rate "), radio.getRate());        // show station bit rate
+    LCD1( lcd,  0, 0, fill( radio.getName(), 20, true));    // show station name
+    LCD1( lcd,  0, 1, fill( radio.getType(), 20, true));    // show station genre
+    LCD1( lcd, 13, 2, fill( radio.getRate(),  3));          // show station bit rate
 
     #ifdef DEBUG_MODE
     ATTR_( Serial, F( "# Station "), radio.getName());
@@ -246,10 +252,10 @@ void showStatus()
     #endif
   }
 
-  LCD1( lcd,  3, 2, count % 2 ? F( "-") : F( " "));
-  LCD1( lcd, 16, 2, count % 2 ? F( "-") : F( " "));
-  LCD2( lcd,  0, 3, F( "CHANNEL = "), preset + 1  );          // show preset on LCD
-  LCD2( lcd, 12, 3, F( "VOL = " ), 100 - volume);          // show volume on LCD
+  LCD1( lcd,  2, 2, radio.receiving() ? label[count % 2] : label[0]);
+  LCD1( lcd, 17, 2, radio.receiving() ? label[count % 2] : label[0]);
+  LCD1( lcd, 10, 3, preset + 1  );                          // show preset on LCD
+  LCD1( lcd, 18, 3, 100 - volume);                          // show volume on LCD
 
   #ifdef DEBUG_MODE
   ATTR_( Serial, F(  "> preset] = "),       preset + 1);
