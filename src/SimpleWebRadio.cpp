@@ -52,12 +52,6 @@ char* SimpleRadio::getRate()
   return _rate;
 }
 
-// return station (bit) rate
-bool SimpleRadio::isAlive()
-{
-  return _receivedBeat;
-}
-
 // set player volume
 void SimpleRadio::setVolume( int v)
 {
@@ -75,20 +69,20 @@ unsigned int SimpleRadio::getVolume()
 // true = station connected
 bool SimpleRadio::connected()
 {
-  return client.connected() & _receivedHead;                                // true = connected to ICYcast server
+  return client.connected() & _dataHead;                // true = connected to ICYcast server
 }
 
 // true = station connected
 bool SimpleRadio::receiving()
 {
-  return _pause;                                // true = connected to ICYcast server
+  return _dataStop == false;                                    // true = connected to ICYcast server
 }
 
 // true = station data available
 bool SimpleRadio::available()
 {
-  bool   disp =  _receivedDisp; _receivedDisp = false;      // return true only once (before opening a new stream)
-  return disp && _receivedHead;                             // true = station meta data available
+  bool   disp =  _dataDisp; _dataDisp = false;      // return true only once (before opening a new stream)
+  return disp && _dataHead;                             // true = station meta data available
 }
 
 // open ICYcast stream
@@ -115,7 +109,7 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
 
     ATTR_( Serial, F( "> Searching: "), preset->url);
     if ( strlen( host) > 0) {
-      #ifdef SIMPLE_WEBRADIO_DEBUG_L0                         // print debug info
+      #ifdef SIMPLE_WEBRADIO_DEBUG_L0                       // print debug info
       ATTR( Serial, F( "host = "), host);
       ATTR( Serial, F( "path = "), path + 1);
       #endif
@@ -132,21 +126,13 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
 
     if ( client.connected()) {                              // if connection is successful
       client.print  ( F( "GET /" )); client.print  ( path + 1); client.println( F( " HTTP/1.0"));
-      //client.print  ( F( "Host: ")); client.println( host    );
+      client.print  ( F( "Host: ")); client.println( host    );
       client.println( F( "Icy-MetaData: 1"));
-      //client.println( F( "Accept: */*"));
-      //client.println( F( "Connection: close"));
+      client.println( F( "Accept: */*"));
+      client.println( F( "Connection: close"));
       client.println();                                     // send ICYcast streaming request
 
       LINE( Serial, F( " > success!"));
-
-      #ifdef SIMPLE_WEBRADIO_DEBUG_L1                       // print debug info
-      Serial.print  ( F( "GET /"));  Serial.print  ( path + 1); Serial.println( F(" HTTP/1.0"));
-      Serial.print  ( F( "Host: ")); Serial.println( host    );
-      Serial.println( F( "Icy-MetaData: 1"));
-      Serial.println( F("Accept: */*"));
-      Serial.println();
-      #endif
     } else {
       LINE( Serial, F(  " > failure"));
     }
@@ -156,10 +142,10 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
     }
   }
 
-  _receivedHead = false;                                    // false = ICYcast header not processed
   _interval =  ICY_BUFF_SIZE;
   _dataNext = _interval;
   _dataLeft = _interval;
+  _dataHead = false;                                    // false = ICYcast header not processed
 
   delay( 500);
 
@@ -178,14 +164,13 @@ void SimpleRadio::stopICYcastStream()
 // recieve ICYcast stream data
 void SimpleRadio::readICYcastStream()
 {
-
-  static Stopwatch sw( 5000); if (sw.check()) _pause = false;
+  static Stopwatch sw( 5000); if (sw.check()) _dataStop = true;
 
   if ( client.connected() && client.available()) {                                // if ICYcast stream data available
     _dataLast = client.read((uint8_t*) playBuffer, _dataNext);
                                                             // read ICYcast stream data from server
     if ( _dataLast > 0) {
-      _pause = true;
+      _dataStop = false;
       sw.reset();
     }
 
@@ -201,24 +186,24 @@ void SimpleRadio::readICYcastStream()
 // process ICYcast stream data
 void SimpleRadio::hndlICYcastHeader()
 {
-  // ATTR_( Serial, F( "> hndlICYcastHeader > total = "), _dataLeft);
-  // ATTR_( Serial, F( " / count = "), _dataNext);
-  // ATTR ( Serial, F( " / "        ), _dataLast);
+  // ATTR_( Serial, F( "> hndlICYcastHeader > tot = "), _dataLeft);
+  // ATTR_( Serial, F( " / req = "), _dataNext);
+  // ATTR ( Serial, F( " / rec = "), _dataLast);
 
   char iVal[PRESET_SIZE_LENGTH]; strcpy( iVal, "0");
 
   bool found = false;
-  found |= _findICYcastStream( PSTR( "icy-name:"   ), _name, PRESET_NAME_LENGTH);
-  found |= _findICYcastStream( PSTR( "icy-genre:"  ), _type, PRESET_NAME_LENGTH);
-  found |= _findICYcastStream( PSTR( "icy-br:"     ), _rate, PRESET_RATE_LENGTH);
-  found |= _findICYcastStream( PSTR( "icy-metaint:"),  iVal, PRESET_SIZE_LENGTH);                                                            // find station name + bit rate
+  found |= _findICYcastHeader( PSTR( "icy-name:"   ), _name, PRESET_NAME_LENGTH);
+  found |= _findICYcastHeader( PSTR( "icy-genre:"  ), _type, PRESET_NAME_LENGTH);
+  found |= _findICYcastHeader( PSTR( "icy-br:"     ), _rate, PRESET_RATE_LENGTH);
+  found |= _findICYcastHeader( PSTR( "icy-metaint:"),  iVal, PRESET_SIZE_LENGTH);                                                            // find station name + bit rate
 
   _interval = atoi( iVal);
-  _dataLeft = ( _interval > 0)             ? _interval : ICY_BUFF_SIZE;
-  _dataNext = ( _dataLeft < ICY_BUFF_SIZE) ? _dataLeft : ICY_BUFF_SIZE;
+  //_dataLeft = ( _interval > 0)             ? _interval : ICY_BUFF_SIZE;
+  //_dataNext = ( _dataLeft < ICY_BUFF_SIZE) ? _dataLeft : ICY_BUFF_SIZE;
 
-  _receivedHead = found;                               // true = header received
-  _receivedDisp = found;
+  _dataHead = found;                               // true = header received
+  _dataDisp = found;
 
   #ifdef SIMPLE_WEBRADIO_DEBUG_L1
   ATTR_( Serial, F(  "> name = "), _name);
@@ -227,24 +212,32 @@ void SimpleRadio::hndlICYcastHeader()
   ATTR ( Serial, F( " / interval = "), iVal);
   #endif
 
-  for ( int skip = 0; skip < (int) _dataLast; skip++) {
-    //LINE_( Serial, playBuffer[i]);
-    if ( memcmp( playBuffer + skip, "\r\n\r\n", 4) == 0) {
-      _playICYcastStream( playBuffer + skip + 4, _dataLast - skip - 4);
-      break;
-    }
+  int skip = _findICYcastHeader( PSTR( "\r\n\r\n"));
+
+  ATTR( Serial, "> skip = ", skip + 4);
+
+  if ( skip) {
+    _playICYcastStream( skip + 4, true);
   }
+
+  // for ( int skip = 0; skip < (int) _dataLast; skip++) {
+  //   //LINE_( Serial, playBuffer[i]);
+  //   if ( memcmp( playBuffer + skip, "\r\n\r\n", 4) == 0) {
+  //     _playICYcastStream( playBuffer + skip + 4, _dataLast - skip - 4);
+  //     break;
+  //   }
+  // }
 }
 
 void SimpleRadio::hndlICYcastStream()
 {
-  // ATTR_( Serial, F( "> hndlICYcastStream > total = "), _dataLeft);
-  // ATTR_( Serial, F( " / count = "), _dataNext);
-  // ATTR ( Serial, F( " / "        ), _dataLast);
+  // ATTR_( Serial, F( "> hndlICYcastStream > tot = "), _dataLeft);
+  // ATTR_( Serial, F( " / req = "), _dataNext);
+  // ATTR ( Serial, F( " / rec = "), _dataLast);
 
   if (( _dataLast > 0) && ( _dataLeft != 0)) {
-    _playICYcastStream( playBuffer, _dataLast);
-    _dataNext = (( _dataLeft > 0) && ( _dataLeft < ICY_BUFF_SIZE)) ? _dataLeft : ICY_BUFF_SIZE;
+    _playICYcastStream();
+    //_dataNext = (( _dataLeft > 0) && ( _dataLeft < ICY_BUFF_SIZE)) ? _dataLeft : ICY_BUFF_SIZE;
   } else
   if (( _dataLast > 0) && ( _dataLeft == 0)) {
     int skip = (int) ( playBuffer[0] * 16);
@@ -253,58 +246,64 @@ void SimpleRadio::hndlICYcastStream()
       strCpy( _meta, playBuffer + 1, min( skip, PRESET_META_LENGTH));
       shiftL( _meta, 39);
 
-      _receivedDisp = true;
-      
+      _dataDisp = true;
+
       #ifdef SIMPLE_WEBRADIO_DEBUG_L1
       ATTR_( Serial, "> metadata = ", skip);
       ATTR ( Serial, " / ", _meta);
       #endif
     } else {
-      _receivedBeat != _receivedBeat;
+
     }
 
+    //_dataLeft = (  _interval > 0)                                  ? _interval : ICY_BUFF_SIZE;
+    //_dataNext = (( _dataLeft > 0) && ( _dataLeft < ICY_BUFF_SIZE)) ? _dataLeft : ICY_BUFF_SIZE;
 
-    _dataLeft = (  _interval > 0)                                  ? _interval : ICY_BUFF_SIZE;
-    _dataNext = (( _dataLeft > 0) && ( _dataLeft < ICY_BUFF_SIZE)) ? _dataLeft : ICY_BUFF_SIZE;
-
-    //_dataLeft -= ( skip - 1);
-    _playICYcastStream( playBuffer + skip + 1, _dataLast - skip - 1);
+    _playICYcastStream( skip + 1, true);
   }
 
 }
 
-void SimpleRadio::_playICYcastStream( char* buff, unsigned int size)
+void SimpleRadio::_playICYcastStream( unsigned int skip, bool reset)
 {
-  // ATTR_( Serial, F( "> playICYcastHeader > total = "), _dataLeft);
-  // ATTR ( Serial, F( " / count = "), size);
+  // ATTR_( Serial, F( "> playICYcastStream > tot = "), _dataLeft);
+  // ATTR_( Serial, F( " / req = "), _dataNext);
+  // ATTR ( Serial, F( " / rec = "), _dataLast);
 
   if ( player) {
-    player->playChunk((uint8_t*) buff, size); // play ICYcast stream
+    player->playChunk((uint8_t*) playBuffer + skip, _dataLast - skip);   // play ICYcast stream
   }
 
-  _dataLeft -= size;
-}
+  if ( skip > 0) {
+    _dataLeft = (  _interval > 0) ? _interval : ICY_BUFF_SIZE;
+  }                                                         // reset dataLeft to next interval
+
+  _dataLeft -= ( _dataLast - skip);                         // decrease dataLeft with bytes played
+  _dataNext = (( _dataLeft > 0) && ( _dataLeft < ICY_BUFF_SIZE)) ? _dataLeft : ICY_BUFF_SIZE;
+}                                                           // set next chunk size
 
 // find label in ICYcast stream data
-bool SimpleRadio::_findICYcastStream( const char* label)
+int SimpleRadio::_findICYcastHeader( const char* label)
 {
- return ( strstr_P(( const char *) playBuffer, label) > 0); // true = label found
+  char*  p = strstr_P((const char *) playBuffer, label);
+                                                            // ptr to label
+  return p ? p - playBuffer : 0;                            // return position of label
 }
 
-bool SimpleRadio::_findICYcastStream( const char* label, char* value, int size)
+int SimpleRadio::_findICYcastHeader( const char* label, char* value, int size)
 {
-  char* s = strstr_P(( const char *) playBuffer, label);    // s = start of label
-  char* e = strstr_P(( const char *) s,  PSTR( "\r\n"));    // e = start of eol (\r\n)
+  char* s = strstr_P((const char *) playBuffer, label);    // s = start of label
+  char* e = strstr_P((const char *) s,  PSTR( "\r\n"));    // e = start of eol (\r\n)
 
   if ( s && e) {                                            // if label + eol is found
     s += strlen_P( label);                                  // s points at first char after label
     while ( *s == ' ') s++;                                 // remove trailing spaces
     if ( s < e) {                                           // if eol is found for this label
-      strCpy( value, s, min( e + 1 - s, size));                 // copy value
+      strCpy( value, s, min( e + 1 - s, size));             // copy value
 
-      return true;                                          // return success
+      return s - playBuffer;                                // return position of label
     }
   }
 
-  return false;                                             // return failure
+  return 0;                                                 // return failure
 }
