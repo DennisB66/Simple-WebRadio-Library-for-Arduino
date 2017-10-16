@@ -69,20 +69,20 @@ unsigned int SimpleRadio::getVolume()
 // true = station connected
 bool SimpleRadio::connected()
 {
-  return client.connected() & _dataHead;                // true = connected to ICYcast server
+  return client.connected() & _dataHead;                    // true = connected to ICYcast server
 }
 
 // true = station connected
 bool SimpleRadio::receiving()
 {
-  return _dataStop == false;                                    // true = connected to ICYcast server
+  return _dataStop == false;                                // true = connected to ICYcast server
 }
 
 // true = station data available
 bool SimpleRadio::available()
 {
-  bool   disp =  _dataDisp; _dataDisp = false;      // return true only once (before opening a new stream)
-  return disp && _dataHead;                             // true = station meta data available
+  bool   disp =  _dataDisp; _dataDisp = false;              // return true only once (before opening a new stream)
+  return disp && _dataHead;                                 // true = station meta data available
 }
 
 // open ICYcast stream
@@ -129,7 +129,7 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
       client.print  ( F( "Host: ")); client.println( host    );
       client.println( F( "Icy-MetaData: 1"));
       client.println( F( "Accept: */*"));
-      client.println( F( "Connection: close"));
+      //client.println( F( "Connection: close"));
       client.println();                                     // send ICYcast streaming request
 
       LINE( Serial, F( " > success!"));
@@ -214,7 +214,7 @@ void SimpleRadio::hndlICYcastHeader()
 
   int skip = _findICYcastHeader( PSTR( "\r\n\r\n"));
 
-  ATTR( Serial, "> skip = ", skip + 4);
+  // ATTR( Serial, F( "> hndlICYcastHeader > header length = "), skip + 4);
 
   if ( skip) {
     _playICYcastStream( skip + 4, true);
