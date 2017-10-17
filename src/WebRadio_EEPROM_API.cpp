@@ -4,7 +4,7 @@
 #include "LiquidCrystal_I2C.h"
 #include "SimpleWebRadio.h"
 #include "SimpleControl.h"
-#include "SimpleWebServer.h"
+//#include "SimpleWebServer.h"
 #include "SimpleUtils.h"
 #include "SimplePrint.h"
 
@@ -20,7 +20,7 @@ byte subnet[]  = { 255, 255, 255,   0 };                    // subnet mask
 byte DNS[]     = {   8,   8,   8,   8 };                    // DNS server (Google)
 
 SimpleRadio       radio;                                    // radio     object  (to play ICYcast streams)
-SimpleWebServer   myServer( 80);                            // server    object (to respond on API calls)
+//SimpleWebServer   myServer( 80);                            // server    object (to respond on API calls)
 SimpleScheduler   scheduler( 1000);                         // scheduler object (to process rotary + button handling)
 SimpleButton      button( A0, false);                       // button    object (to switch between preset + volume setting)
 SimpleRotary      rotary( A1, A2);                          // rotary    object (to change preset + volume)
@@ -36,7 +36,7 @@ void loadSettings();                                        // load preset + vol
 void saveSettings();                                        // save preset + volume to   EEPROM
 void hndlPlayer();
 void hndlDevice();
-void hndlServer();
+//void hndlServer();
 bool copyPreset( char*);                                    // copy url to presetData (but not to EEPROM)
 bool loadPreset( int i);                                    // load presetData from EEPROM slot i
 bool savePreset( int i, char* = NULL);                      // save presetData to   EERPOM slot i
@@ -57,11 +57,10 @@ void setup()
   Ethernet.begin( macaddr, iplocal, DNS, gateway, subnet);
 
   #ifdef DEBUG_MODE
-  ATTR_( Serial, F( "# server listening at "), Ethernet.localIP());
-  ATTR ( Serial, F( ":")                     , myServer.getPort());
+  ATTR( Serial, F( "# server hosted at "), Ethernet.localIP());
   #endif
 
-  myServer.begin();                                         // starting webserver
+  //myServer.begin();                                         // starting webserver
 
   //loadSettings();                                           // load preset + volume from EEPROM
   loadPreset( preset);                                      // load presetData from EEPROM slot indicated by preset
@@ -73,7 +72,7 @@ void setup()
   rotary.setPosition( preset);                              // set rotary to preset
 
   scheduler.attachHandler( rotary.handle);                  // include rotary in scheduler
-  scheduler.attachHandler( button.handle);                  // include button in scheduler
+  scheduler.attachHandler( SimpleButton::handle);                  // include button in scheduler
   scheduler.start();                                        // start scheduler
 
   lcd.begin();
@@ -98,7 +97,7 @@ void loop()
   }
 
   hndlDevice();
-  hndlServer();
+  //hndlServer();
 
   stopwatch.check( showStatus);                           // save Settings every 10 sec
 }
@@ -180,54 +179,54 @@ void hndlDevice()
   }
 }
 
-void hndlServer()
-{
-  if ( myServer.available()) {                              // check incoming HTTP request
-    int  code = 400;                                        // default return code = error
-
-    char* chn = myServer.path( 1);                          // get preset id     (if present)
-    char* url = myServer.arg( "url");                       // get preset url    (if present)
-    char* vol = myServer.arg( "volume");                    // get player volume (if present)
-
-    if (  myServer.path( 0, "presets")) {                   // if presets addressed
-      if (( myServer.getMethod() == HTTP_PUT) && chn && url) {
-        savePreset( atoi( chn) - 1, url);                   // save url in EEPROM
-        code = 200;
-      }
-    }
-
-    if (  myServer.path( 0, "webradio")) {                  // if player addressed
-      if (( myServer.getMethod() == HTTP_GET) && !chn && url) {
-        copyPreset( url);                                   // load url (but don't store in EEPROM)
-        code = 200;
-      }
-
-      if (( myServer.getMethod() == HTTP_GET) && chn && !url) {
-        loadPreset( preset = atoi( chn) - 1);               // load preset from EEPROM
-        code = 200;
-      }
-
-      if (( myServer.getMethod() == HTTP_GET) && vol) {
-        radio.setVolume( volume = 100 - atoi( vol));         // set player volume
-        code = 200;
-      }
-
-      if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "play")) {
-        initStatus();
-        radio.stopICYcastStream();
-        radio.openICYcastStream( &presetData);             // play url in memory
-        code = 200;
-      }
-
-      if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "stop")) {
-        radio.stopICYcastStream();                         // stop player
-        code = 200;
-      }
-    }
-
-    myServer.response( code);                               // return response (headers + code)
-  }
-}
+// void hndlServer()
+// {
+//   if ( myServer.available()) {                              // check incoming HTTP request
+//     int  code = 400;                                        // default return code = error
+//
+//     char* chn = myServer.path( 1);                          // get preset id     (if present)
+//     char* url = myServer.arg( "url");                       // get preset url    (if present)
+//     char* vol = myServer.arg( "volume");                    // get player volume (if present)
+//
+//     if (  myServer.path( 0, "presets")) {                   // if presets addressed
+//       if (( myServer.getMethod() == HTTP_PUT) && chn && url) {
+//         savePreset( atoi( chn) - 1, url);                   // save url in EEPROM
+//         code = 200;
+//       }
+//     }
+//
+//     if (  myServer.path( 0, "webradio")) {                  // if player addressed
+//       if (( myServer.getMethod() == HTTP_GET) && !chn && url) {
+//         copyPreset( url);                                   // load url (but don't store in EEPROM)
+//         code = 200;
+//       }
+//
+//       if (( myServer.getMethod() == HTTP_GET) && chn && !url) {
+//         loadPreset( preset = atoi( chn) - 1);               // load preset from EEPROM
+//         code = 200;
+//       }
+//
+//       if (( myServer.getMethod() == HTTP_GET) && vol) {
+//         radio.setVolume( volume = 100 - atoi( vol));         // set player volume
+//         code = 200;
+//       }
+//
+//       if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "play")) {
+//         initStatus();
+//         radio.stopICYcastStream();
+//         radio.openICYcastStream( &presetData);             // play url in memory
+//         code = 200;
+//       }
+//
+//       if (( myServer.getMethod() == HTTP_GET) && myServer.arg( "stop")) {
+//         radio.stopICYcastStream();                         // stop player
+//         code = 200;
+//       }
+//     }
+//
+//     myServer.response( code);                               // return response (headers + code)
+//   }
+// }
 
 // load preset from EEPROM
 void loadSettings()
