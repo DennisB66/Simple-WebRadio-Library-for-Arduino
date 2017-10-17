@@ -28,7 +28,7 @@ void SimpleRadio::setPlayer( byte _dreq_pin, byte _cs_pin, byte _dcs_pin, byte _
 
   player = new VS1053( _cs_pin, _dcs_pin, _dreq_pin, _reset_pin);
 
-  if ( player) {                                            // if player object exists
+  if ( player) {                                            // if player object created
     player->begin();                                        // start player
     player->setVolume( _volume = 50);                       // Set the volume (default = 50)
   }
@@ -37,26 +37,32 @@ void SimpleRadio::setPlayer( byte _dreq_pin, byte _cs_pin, byte _dcs_pin, byte _
 // return station name
 char* SimpleRadio::getName()
 {
-  return _name;
+  return _name;                                             // return station name
 }
 
 // return station genre
 char* SimpleRadio::getType()
 {
-  return _meta;
+  return _type;                                             // return station genre
 }
 
 // return station (bit) rate
 char* SimpleRadio::getRate()
 {
-  return _rate;
+  return _rate;                                             // return station (bit) rate
 }
 
-// set player volume
+// return station info
+char* SimpleRadio::getInfo()
+{
+  return _info;                                             // return station info
+}
+
+// set volume
 void SimpleRadio::setVolume( int v)
 {
-  if ( player) {                                            // if player object exists
-    player->setVolume( _volume = minMax( v, 0, 255));       // set player volume
+  if ( player) {                                            // if player object created
+    player->setVolume( _volume = minMax( v, 0, 255));       // set volume (0 = loud, 255 = silent)
   }
 }
 
@@ -69,29 +75,29 @@ unsigned int SimpleRadio::getVolume()
 // true = station connected
 bool SimpleRadio::connected()
 {
-  return client.connected() & _dataHead;                    // true = connected to ICYcast server
+  return client.connected() & _dataHead;                    // true = connected & ICYcast header received
 }
 
 // true = station connected
 bool SimpleRadio::receiving()
 {
-  return _dataStop == false;                                // true = connected to ICYcast server
+  return _dataStop == false;                                // true = ICYcast data stream stopped
 }
 
-// true = station data available
+// true = station header or (new) info data available
 bool SimpleRadio::available()
 {
-  bool   disp =  _dataDisp; _dataDisp = false;              // return true only once (before opening a new stream)
+  bool   disp =  _dataDisp; _dataDisp = false;              // reset after checking (= disply once)
   return disp && _dataHead;                                 // true = station meta data available
 }
 
 // open ICYcast stream
-bool SimpleRadio::openICYcastStream( presetInfo* preset)
+bool SimpleRadio::openICYcastStream( PresetInfo* preset)
 {
-  LINE( Serial, "> openICYcastStream");
+  //PRINT( F( "> openICYcastStream")) LF;
 
   strcpy_P( _name, PSTR( "< ---------- >"));                // initialize station name
-  strcpy_P( _meta, PSTR( "< ---------- >"));                // initialize station name
+  strcpy_P( _info, PSTR( "< ---------- >"));                // initialize station info
   strcpy_P( _rate, PSTR( "###"));                           // initialize station bit rate
 
 
@@ -100,26 +106,26 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
     char* path = strchr( preset->url, '/');                 //           ^ path
 
     if ( path) {                                            // if path found
-      host[ path - preset->url] = 0;                        // terminate host string ('/' > '\0')
+      host[ path - preset->url] = 0;                        // terminate host string ('/' = '\0')
     } else {
       return false;                                         // no valid url found
     }
 
     IPAddress hostIP( preset->ip4);                         // extract host IP from presetData
 
-    ATTR_( Serial, F( "> Searching: "), preset->url);
+    PRINT( F( "# searching "));
     if ( strlen( host) > 0) {
-      #ifdef SIMPLE_WEBRADIO_DEBUG_L0                       // print debug info
-      ATTR( Serial, F( "host = "), host);
-      ATTR( Serial, F( "path = "), path + 1);
-      #endif
+      //#ifdef SIMPLE_WEBRADIO_DEBUG_L0                       // print debug info
+      LABEL( F( "host "), host);
+      LABEL( F( "/")    , path + 1);
+      //#endif
 
-      client.connect( host  , preset->port);                // connect to ICYcast server
+      client.connect( host, preset->port);                // connect to ICYcast server
     } else {
-      #ifdef SIMPLE_WEBRADIO_DEBUG_L0                       // print debug info
-      ADDR_( Serial, F( "server = "), hostIP);
-      ATTR ( Serial, F( ":")        , preset->port);
-      #endif
+      //#ifdef SIMPLE_WEBRADIO_DEBUG_L0                       // print debug info
+      VALUE( F( "host"), hostIP);
+      VALUE( F( ":")   , preset->port);
+      //#endif
 
       client.connect( hostIP, preset->port);                // connect to ICYcast server
     }
@@ -129,12 +135,12 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
       client.print  ( F( "Host: ")); client.println( host    );
       client.println( F( "Icy-MetaData: 1"));
       client.println( F( "Accept: */*"));
-      //client.println( F( "Connection: close"));
+    //client.println( F( "Connection: close"));
       client.println();                                     // send ICYcast streaming request
 
-      LINE( Serial, F( " > success!"));
+      PRINT( F( "> success!")) LF;
     } else {
-      LINE( Serial, F(  " > failure"));
+      PRINT( F( "> failure!")) LF;
     }
 
     if ( path) {                                            // if url has been changed (by replacing '/' by '\0')
@@ -155,7 +161,7 @@ bool SimpleRadio::openICYcastStream( presetInfo* preset)
 // stop ICYcast stream
 void SimpleRadio::stopICYcastStream()
 {
-  // LINE( Serial, "> stopICYcastStream");
+  // PRINT( F( "> stopICYcastStream")) lF;
 
   if ( player) player->stopSong();                          // stop radio player
   client.stop();                                            // disconnect from ICYcast server
@@ -174,9 +180,9 @@ void SimpleRadio::readICYcastStream()
       sw.reset();
     }
 
-    // ATTR_( Serial, F( "> readICYcastStream > total = "), _dataLeft);
-    // ATTR_( Serial, F( " / count = "), _dataNext);
-    // ATTR ( Serial, F( " / "        ), _dataLast);
+    // VALUE( F( "> readICYcastStream > total = "), _dataLeft);
+    // VALUE( F( " / count = "), _dataNext)   ;
+    // VALUE( F( " / "        ), _dataLast) LF;
   } else {
     _dataLast = 0;
   }
@@ -186,9 +192,9 @@ void SimpleRadio::readICYcastStream()
 // process ICYcast stream data
 void SimpleRadio::hndlICYcastHeader()
 {
-  // ATTR_( Serial, F( "> hndlICYcastHeader > tot = "), _dataLeft);
-  // ATTR_( Serial, F( " / req = "), _dataNext);
-  // ATTR ( Serial, F( " / rec = "), _dataLast);
+  // VALUE( F( "> hndlICYcastHeader > tot = "), _dataLeft);
+  // VALUE( F( " / req = "), _dataNext)   ;
+  // VALUE( F( " / rec = "), _dataLast) LF;
 
   char iVal[PRESET_SIZE_LENGTH]; strcpy( iVal, "0");
 
@@ -204,15 +210,15 @@ void SimpleRadio::hndlICYcastHeader()
   _dataDisp = found;
 
   #ifdef SIMPLE_WEBRADIO_DEBUG_L1
-  ATTR_( Serial, F(  "> name = "), _name);
-  ATTR_( Serial, F( " / type = "), _type);
-  ATTR_( Serial, F( " / rate = "), _rate);
-  ATTR ( Serial, F( " / interval = "), iVal);
+  VALUE( F( "name = "), _name);
+  VALUE( F( "type = "), _type);
+  VALUE( F( "rate = "), _rate);
+  VALUE( F( "interval = "), iVal) LF;
   #endif
 
   int skip = _findICYcastHeader( PSTR( "\r\n\r\n"));
 
-  // ATTR( Serial, F( "> hndlICYcastHeader > header length = "), skip + 4);
+  // VALUE( F( "> hndlICYcastHeader > header length = "), skip + 4) LF;
 
   if ( skip) {
     _playICYcastStream( skip + 4, true);
@@ -221,9 +227,9 @@ void SimpleRadio::hndlICYcastHeader()
 
 void SimpleRadio::hndlICYcastStream()
 {
-  // ATTR_( Serial, F( "> hndlICYcastStream > tot = "), _dataLeft);
-  // ATTR_( Serial, F( " / req = "), _dataNext);
-  // ATTR ( Serial, F( " / rec = "), _dataLast);
+  // VALUE( F( "> hndlICYcastStream > tot = "), _dataLeft);
+  // VALUE( F( " / req = "), _dataNext)   ;
+  // VALUE( F( " / rec = "), _dataLast) LF;
 
   if (( _dataLast > 0) && ( _dataLeft != 0)) {
     _playICYcastStream();
@@ -232,14 +238,14 @@ void SimpleRadio::hndlICYcastStream()
     int skip = (int) ( playBuffer[0] * 16);
 
     if ( skip > 0) {
-      strCpy( _meta, playBuffer + 1, min( skip, PRESET_META_LENGTH));
-      shiftL( _meta, 39);
+      strCpy( _info, playBuffer + 1, min( skip, PRESET_META_LENGTH));
+      shiftL( _info, 39);
 
       _dataDisp = true;
 
       #ifdef SIMPLE_WEBRADIO_DEBUG_L1
-      ATTR_( Serial, "> metadata = ", skip);
-      ATTR ( Serial, " / ", _meta);
+      VALUE( "> metadata = ", skip);
+      VALUE( " / ", _info);
       #endif
     } else {
 
@@ -252,9 +258,9 @@ void SimpleRadio::hndlICYcastStream()
 
 void SimpleRadio::_playICYcastStream( unsigned int skip, bool reset)
 {
-  // ATTR_( Serial, F( "> playICYcastStream > tot = "), _dataLeft);
-  // ATTR_( Serial, F( " / req = "), _dataNext);
-  // ATTR ( Serial, F( " / rec = "), _dataLast);
+  // VALUE( F( "> playICYcastStream > tot = "), _dataLeft);
+  // VALUE( F( " / req = "), _dataNext)   ;
+  // VALUE( F( " / rec = "), _dataLast) LF;
 
   if ( player) {
     player->playChunk((uint8_t*) playBuffer + skip, _dataLast - skip);   // play ICYcast stream

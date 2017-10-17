@@ -10,7 +10,7 @@
 #include <SPI.h>
 #include <TimerOne.h>
 
-const presetInfo presetList[PRESET_MAX] = {
+const PresetInfo presetList[RADIO_PRESET_MAX] = {
   { "icecast.omroep.nl/radio1-bb-mp3",            {   0,   0,   0,   0}, 80 },
   { "icecast.omroep.nl/radio2-bb-mp3",            {   0,   0,   0,   0}, 80 },
   { "icecast.omroep.nl/3fm-bb-mp3",               {   0,   0,   0,   0}, 80 },
@@ -29,8 +29,8 @@ void preset2EEPROM()
   EEPROM.put( 0, preset);
   EEPROM.put( 1, volume);
 
-  for ( int i = 0; i < PRESET_MAX; i++) {
-    EEPROM.put( 2 + i * sizeof( presetInfo), presetList[ i]);
+  for ( int i = 0; i < RADIO_PRESET_MAX; i++) {
+    EEPROM.put( 2 + i * sizeof( PresetInfo), presetList[ i]);
   }
 }
 
@@ -39,33 +39,33 @@ void EEPROM2Preset()
   EEPROM.get( 0, preset);
   EEPROM.get( 0, volume);
 
-  for ( int i = 0; i < PRESET_MAX; i++) {
-    EEPROM.get( 2 + i * sizeof( presetInfo), presetList[ i]);
+  for ( int i = 0; i < RADIO_PRESET_MAX; i++) {
+    EEPROM.get( 2 + i * sizeof( PresetInfo), presetList[ i]);
   }
 }
 
 void setup()
 {
   Serial.begin( 9600);    				// Start serial port with 57600 bits per seconds
-  LINE( Serial, F( ""));
-  LINE( Serial, F( "Arduino WebRadio Preset to EEPROM V0.2"));
-  LINE( Serial, F( ""));
+  PRINT( F( "-------------------------------------")) LF;
+  PRINT( F( "- Arduino WebRadio Preset to EEPROM -")) LF;
+  PRINT( F( "-------------------------------------")) LF;
+
+  TRACE(sizeof(presetList[0].ip4)) LF;
 
   preset2EEPROM();
 
-  memset( (void*) presetList, 0, PRESET_MAX * sizeof( presetInfo));
+  memset( (void*) presetList, 0, RADIO_PRESET_MAX * sizeof( PresetInfo));
 
   EEPROM2Preset();
 
-  ATTR( Serial, F( "Preset = "), preset);
-  ATTR( Serial, F( "Volume = "), volume);
-  LINE( Serial, F( ""));
+  VALUE( F( "Preset"), preset) LF;
+  VALUE( F( "Volume"), volume) LF;
 
-  for ( int i = 0; i < PRESET_MAX; i++) {
-    ATTR( Serial, F( "Preset url = "), presetList[ i].url);
+  for ( int i = 0; i < RADIO_PRESET_MAX; i++) {
+    VALUE( F( "Preset url"), presetList[ i].url);
+    VALUE( F( "Preset ip") , presetList[ i].ip4); LF;
   }
-
-  LINE( Serial, F( ""));
 }
 
 void loop()

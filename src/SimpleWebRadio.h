@@ -16,7 +16,7 @@
 #include <VS1053.h>
 #include <TimerOne.h>
 
-#define PRESET_MAX 8                                        // max presets
+#define RADIO_PRESET_MAX    8                               // max presets
 
 #define PRESET_PATH_LENGTH  64                              // max path length
 #define PRESET_NAME_LENGTH  20                              // max name length
@@ -26,10 +26,10 @@
 
 #define ICY_BUFF_SIZE      400                              // play buffer length.
 
-struct presetInfo {
-  char url[PRESET_PATH_LENGTH];                             // preset HTTP url
-  byte ip4[4];                                              // preset HTTP ip address
-  word port;                                                // preset HTTP port
+struct PresetInfo {
+  char      url[PRESET_PATH_LENGTH];                        // preset HTTP url
+  IPAddress ip4;                                            // preset HTTP ip address
+  word      port;                                           // preset HTTP port
 };
 
 class SimpleRadio {                                         // SimpleRadio object
@@ -39,6 +39,7 @@ public:
   char* getName();                                          // return station name
   char* getType();                                          // return station genre
   char* getRate();                                          // return station bit rate
+  char* getInfo();                                          // return station info
 
   void          setVolume( int);                            // set player volume
   unsigned int  getVolume();                                // get player volume
@@ -47,7 +48,7 @@ public:
   bool available();                                         // true = stream data available
   bool receiving();                                         // true = stream keeps active
 
-  bool openICYcastStream( presetInfo* preset);              // open ICYcast stream
+  bool openICYcastStream( PresetInfo* preset);              // open ICYcast stream
   void stopICYcastStream();                                 // stop ICYcast stream
   void readICYcastStream();                                 // recieve ICYcast stream data
   void hndlICYcastHeader();                                 // process ICYcast stream data
@@ -59,7 +60,7 @@ private:
   char          _name[ PRESET_NAME_LENGTH];                 // stream name
   char          _type[ PRESET_NAME_LENGTH];                 // stream genre
   char          _rate[ PRESET_RATE_LENGTH];                 // stream bit rate
-  char          _meta[ PRESET_META_LENGTH];                 // stream metadata
+  char          _info[ PRESET_META_LENGTH];                 // stream metadata
 
   unsigned int  _interval;                                  // total bytes to next metadata
   unsigned int  _dataLeft;                                  // left  bytes to next metadata
