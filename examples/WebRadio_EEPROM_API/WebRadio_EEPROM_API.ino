@@ -22,16 +22,14 @@ byte DNS[]     = {   8,   8,   8,   8 };                    // DNS server (Googl
 SimpleRadio       radio;                                    // radio     object  (to play ICYcast streams)
 SimpleWebServer   myServer( 80);                            // server    object (to respond on API calls)
 SimpleScheduler   scheduler( 1000);                         // scheduler object (to process rotary + button handling)
-SimpleButton      buttonR( A0, false);                       // button    object (to switch between preset + volume setting)
-SimpleRotary      rotaryR( A1, A2);                          // rotary    object (to change preset + volume)
-// SimpleButton      buttonL( A8, false);                       // button    object (to switch between preset + volume setting)
-// SimpleRotary      rotaryL( A9, A10);                          // rotary    object (to change preset + volume)
-Stopwatch         stopwatch( 750);                         // stopwatch object (set for 1 sec)
+SimpleButton      button( A0, false);                       // button    object (to switch between preset + volume setting)
+SimpleRotary      rotary( A1, A2);                          // rotary    object (to change preset + volume)
+Stopwatch         stopwatch( 750);                          // stopwatch object (set for 1 sec)
 LiquidCrystal_I2C lcd( 0x3F, 20, 4);
 
 presetInfo presetData;                                      // preset    object (to hold station url or IP data)
-byte       preset =  0;                                      // current preset playing
-byte       volume = 70;                                      // current volume playing
+byte       preset =  0;                                     // current preset playing
+byte       volume = 70;                                     // current volume playing
 byte       state  = RADIO_STOP;
 
 void loadSettings();                                        // load preset + volume from EEPROM
@@ -47,12 +45,12 @@ void showStatus();                                          // show preset + vol
 
 void setup()
 {
-	Serial.begin( 115200);
+	Serial.begin( 9600);
 
   #ifdef DEBUG_MODE
-  LINE( Serial, F( "-------------------------"));           // show header
-	LINE( Serial, F( "- Arduino WebRadio V0.6 -"));
-  LINE( Serial, F( "-------------------------"));
+  LINE( Serial, F( "---------------------"));           // show header
+	LINE( Serial, F( "- Arduino WebRadio  -"));
+  LINE( Serial, F( "---------------------"));
   LINE( Serial, F("#"));
   #endif
 
@@ -71,15 +69,11 @@ void setup()
   radio.setPlayer( 2, 6, 7, 8);                             // initialize MP3 player
   radio.setVolume( volume);                                 // set volume of player
 
-  // rotaryL.setMinMax( 0, PRESET_MAX - 1, true);               // set rotary boundaries
-  // rotaryL.setPosition( preset);                              // set rotary to preset
-  rotaryR.setMinMax( 100, 0, 10);                      // set proper rotary boundaries
-  rotaryR.setPosition( volume);                        // set proper rotary position (= last volume)
+  rotary.setMinMax( 0, PRESET_MAX - 1, true);               // set rotary boundaries
+  rotary.setPosition( preset);                              // set rotary to preset
 
-  // scheduler.attachHandler( rotaryL.handle);                  // include rotary in scheduler
-  // scheduler.attachHandler( buttonL.handle);                  // include button in scheduler
-  scheduler.attachHandler( rotaryR.handle);                  // include rotary in scheduler
-  scheduler.attachHandler( buttonR.handle);                  // include button in scheduler
+  scheduler.attachHandler( rotary.handle);                  // include rotary in scheduler
+  scheduler.attachHandler( button.handle);                  // include button in scheduler
   scheduler.start();                                        // start scheduler
 
   lcd.begin();
@@ -124,6 +118,8 @@ void hndlPlayer()
 
 void hndlDevice()
 {
+  static bool mode = 0;
+
   // if ( buttonL.available()) {                                // if button processed
   //   switch ( buttonL.read()) {
   //     case BUTTON_NORMAL :                                              // allow preset selection
@@ -140,28 +136,48 @@ void hndlDevice()
   //   loadPreset( preset);                                  // read preset from EEPROM
   // }
 
-  if ( buttonR.available()) {                                // if button processed
-    switch ( buttonR.read()) {
-      case BUTTON_NORMAL :                                              // allow preset selection
+  if ( button.available()) {                                // if button processed
+    switch ( button.read()) {
+    case BUTTON_NORMAL :
+      // mode = 0;
+      // rotary.setMinMax( 0, PRESET_MAX - 1, true);         // set proper rotary boundaries
+      // rotary.setPosition( preset);                                               // allow preset selection
       lcd.backlight();
       state = RADIO_PLAY;
       break;
-      case BUTTON_HOLD :
+    case BUTTON_HOLD :
       lcd.noBacklight();
       state = RADIO_STOP;
+      break;
+    case BUTTON_DOUBLE :
+      mode = !mode;
+      switch (mode) {
+      case 0 :                                              // allow preset selection
+        rotary.setMinMax( 0, PRESET_MAX - 1, true);         // set proper rotary boundaries
+        rotary.setPosition( preset);                        // set proper rotary position (= last preset)
+        break;
+      case 1 :                                              // allow volume selection
+        rotary.setMinMax( 100, 0, 10);                      // set proper rotary boundaries
+        rotary.setPosition( volume);                        // set proper rotary position (= last volume)
+        break;
+      }
       break;
     }
   }
 
-  if ( rotaryR.changed()) {                                  // if rotary turned
-    volume = rotaryR.position();                           // read rotary position
-    radio.setVolume( volume);                             // read rotary position
+  if ( rotary.changed()) {                                  // if rotary turned
+    switch ( mode) {
+    case 0 :                                                // allow preset selection
+      radio.stopICYcastStream();                            // stop radio playing
+      preset = rotary.position();                           // read rotaty position
+      loadPreset( preset);                                  // read preset from EEPROM
+      break;
+    case 1 :                                                // allow volume selection
+      volume = rotary.position();                           // read rotary position
+      radio.setVolume( volume);                             // read rotary position
+      break;
+    }
   }
-
-  // buttonL.handle();
-  // rotaryL.handle();
-  // buttonR.handle();
-  // rotaryR.handle();
 }
 
 void hndlServer()
