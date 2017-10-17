@@ -199,8 +199,6 @@ void SimpleRadio::hndlICYcastHeader()
   found |= _findICYcastHeader( PSTR( "icy-metaint:"),  iVal, PRESET_SIZE_LENGTH);                                                            // find station name + bit rate
 
   _interval = atoi( iVal);
-  //_dataLeft = ( _interval > 0)             ? _interval : ICY_BUFF_SIZE;
-  //_dataNext = ( _dataLeft < ICY_BUFF_SIZE) ? _dataLeft : ICY_BUFF_SIZE;
 
   _dataHead = found;                               // true = header received
   _dataDisp = found;
@@ -219,14 +217,6 @@ void SimpleRadio::hndlICYcastHeader()
   if ( skip) {
     _playICYcastStream( skip + 4, true);
   }
-
-  // for ( int skip = 0; skip < (int) _dataLast; skip++) {
-  //   //LINE_( Serial, playBuffer[i]);
-  //   if ( memcmp( playBuffer + skip, "\r\n\r\n", 4) == 0) {
-  //     _playICYcastStream( playBuffer + skip + 4, _dataLast - skip - 4);
-  //     break;
-  //   }
-  // }
 }
 
 void SimpleRadio::hndlICYcastStream()
@@ -237,7 +227,6 @@ void SimpleRadio::hndlICYcastStream()
 
   if (( _dataLast > 0) && ( _dataLeft != 0)) {
     _playICYcastStream();
-    //_dataNext = (( _dataLeft > 0) && ( _dataLeft < ICY_BUFF_SIZE)) ? _dataLeft : ICY_BUFF_SIZE;
   } else
   if (( _dataLast > 0) && ( _dataLeft == 0)) {
     int skip = (int) ( playBuffer[0] * 16);
@@ -255,9 +244,6 @@ void SimpleRadio::hndlICYcastStream()
     } else {
 
     }
-
-    //_dataLeft = (  _interval > 0)                                  ? _interval : ICY_BUFF_SIZE;
-    //_dataNext = (( _dataLeft > 0) && ( _dataLeft < ICY_BUFF_SIZE)) ? _dataLeft : ICY_BUFF_SIZE;
 
     _playICYcastStream( skip + 1, true);
   }
