@@ -8,7 +8,7 @@
 #include "SimpleUtils.h"
 #include "SimplePrint.h"
 
-#define DEBUG_MODE
+#define VERBOSE_MODE
 
 #define RADIO_STOP 0
 #define RADIO_PLAY 1
@@ -44,21 +44,21 @@ void showStatus();                                          // show preset + vol
 
 void setup()
 {
-	BEGIN( 9600);
+	BEGIN( 9600);                                             // Serial at 9600
 
-  #ifdef DEBUG_MODE
-  PRINT( F( "# ---------------------")) LF;                   // show header
+  #ifdef VERBOSE_MODE
+  PRINT( F( "# ---------------------")) LF;                 // show header
 	PRINT( F( "# - Arduino WebRadio  -")) LF;
   PRINT( F( "# ---------------------")) LF;
   PRINT( F( "#")) LF;
   #endif
 
-  Ethernet.begin( macaddr, iplocal, DNS, gateway, subnet);
+  Ethernet.begin( macaddr, iplocal, DNS, gateway, subnet);  // start ethernet
 
-  //server.begin();                                         // starting webserver
+  //server.begin();                                           // start webserver
 
   loadSettings();                                           // load preset + volume from EEPROM
-  loadPreset( preset);                                      // load presetData from EEPROM slot indicated by preset
+  loadPreset( preset);                                      // load presetData from EEPROM slot preset
 
   #ifdef DEBUG_MODE
   PRINT( F( "# client hosted at ")); PRINT( Ethernet.localIP()) LF;
@@ -123,37 +123,21 @@ void hndlDevice()
 {
   static bool mode = 0;
 
-  // if ( buttonL.available()) {                                // if button processed
-  //   switch ( buttonL.read()) {
-  //     case BUTTON_NORMAL :                                              // allow preset selection
-  //     break;
-  //     case BUTTON_HOLD :                                              // allow volume selection
-  //     break;
-  //   }
-  // }
-  //
-  // if ( rotaryL.changed()) {                                  // if rotary turned
-  //   initStatus();
-  //   radio.stopICYcastStream();                            // stop radio playing
-  //   preset = rotaryL.position();                           // read rotaty position
-  //   loadPreset( preset);                                  // read preset from EEPROM
-  // }
-
   if ( button.available()) {                                // if button processed
-    switch ( button.read()) {
-    case BUTTON_NORMAL :
-      lcd.backlight();
-      state = RADIO_PLAY;
+    switch ( button.read()) {                               // read button value
+    case BUTTON_NORMAL :                                    // if normal press
+      lcd.backlight();                                      // switch on lcd backlight
+      state = RADIO_PLAY;                                   // play radio
       break;
-    case BUTTON_HOLD :
-      lcd.noBacklight();
-      state = RADIO_STOP;
+    case BUTTON_HOLD :                                      // if press & hold
+      lcd.noBacklight();                                    // switch off lcd backlight
+      state = RADIO_STOP;                                   // stop radio
       break;
-    case BUTTON_DOUBLE :
-      mode = !mode;
+    case BUTTON_DOUBLE :                                    // if double press
+      mode = !mode;                                         // toggle mode (0 = preset / 1 = volume)
       switch (mode) {
       case 0 :                                              // allow preset selection
-        rotary.setMinMax( 0, RADIO_PRESET_MAX - 1, true);         // set proper rotary boundaries
+        rotary.setMinMax( 0, RADIO_PRESET_MAX - 1, true);   // set proper rotary boundaries
         rotary.setPosition( preset);                        // set proper rotary position (= last preset)
         break;
       case 1 :                                              // allow volume selection
@@ -262,31 +246,14 @@ bool copyPreset( char* url)
 // load presetData from EEPROM
 bool loadPreset( int preset)
 {
-  PresetInfo data;
+  PresetInfo data;                                          // preset buffer (note: includes 2 extra IOstream bytes)
 
   if (( preset >= 0) && ( preset < RADIO_PRESET_MAX)) {     // if valid preset
-    EEPROM.get( 2 + preset * sizeof( PresetInfo), data);    // load presetData from EEPROM
+    EEPROM.get( 2 + preset * sizeof( PresetInfo), data);    // load preset data from EEPROM
 
-    strcpy( presetData.url, data.url);
-    presetData.ip4  = data.ip4 ;
-    presetData.port = data.port;
-
-    return true;
-  } else {
-    return false;                                           // return failure
-  }
-
-
-  //IPAddress ip = presetData.ip4; memcpy( presetData.ip4, ip, sizeof( ip));
-}
-
-// save presetData to EEPROM
-bool savePreset( int preset, char* url)
-{
-  copyPreset( url);                                         // copy url (if provided)
-
-  if (( preset >= 0) && ( preset < RADIO_PRESET_MAX)) {                     // if valid preset
-    EEPROM.put( 2 + preset * sizeof( PresetInfo), presetData);   // save presetData from EEPROM
+    strcpy( presetData.url, data.url);                      // copy preset url
+    presetData.ip4  = data.ip4 ;                            // copy preset ip4
+    presetData.port = data.port;                            // copy preset port
 
     return true;                                            // return success
   } else {
@@ -294,19 +261,34 @@ bool savePreset( int preset, char* url)
   }
 }
 
-void initStatus()
+// save presetData to EEPROM
+bool savePreset( int preset, char* url)
 {
-  LCD1( lcd,  0,  0, fill( "< ---------- >", 20, true));
-  LCD1( lcd,  0,  1, fill( ""              , 20, true));
-  LCD1( lcd,  4,  2, F( "Bit Rate" ));
-  LCD1( lcd,  0,  3, F( "CHANNEL ="));          // show preset on LCD
-  LCD1( lcd, 12,  3, F( "VOL ="    ));          // show volume on LCD
+  copyPreset( url);                                         // copy url (if provided)
+
+  if (( preset >= 0) && ( preset < RADIO_PRESET_MAX)) {     // if valid preset
+    EEPROM.put( 2 + preset * sizeof( PresetInfo), presetData);
+                                                            // save presetData from EEPROM
+    return true;                                            // return success
+  } else {
+    return false;                                           // return failure
+  }
 }
 
-// show preset + volume
+// initialize lcd
+void initStatus()
+{
+  LCD1( lcd,  0,  0, fill( "< ---------- >", 20, true));    // show empty name
+  LCD1( lcd,  0,  1, fill( ""              , 20, true));    // show empty info
+  LCD1( lcd,  4,  2, F( "Bit Rate" ));                      // show bit rate
+  LCD1( lcd,  0,  3, F( "CHANNEL ="));                      // show preset
+  LCD1( lcd, 12,  3, F( "VOL ="    ));                      // show volume
+}
+
+// update lcd
 void showStatus()
 {
-  static char label[2] = { ' ', '-'};
+  static char label[2] = { ' ', '-'};                       // heart beat symbols
   static int  cnt = 0;
   static int  len = 0;
 
@@ -315,25 +297,24 @@ void showStatus()
     LCD1( lcd,  0, 1, fill( radio.getInfo(), 20, true));    // show station genre
     LCD1( lcd, 13, 2, fill( radio.getRate(),  3));          // show station bit rate
 
-    #ifdef DEBUG_MODE
+    #ifdef VERBOSE_MODE
     VALUE( F( "# name"), radio.getName());
     VALUE( F(   "info"), radio.getInfo());
     VALUE( F(   "rate"), radio.getRate()); LF;
     #endif
 
-    len = max( 0, strlen( radio.getType()) - 20);
+    len = max( 0, strlen( radio.getInfo()) - 20);
   }
 
   LCD1( lcd,  2, 2, radio.receiving() ? label[cnt % 2] : label[0]);
   LCD1( lcd, 17, 2, radio.receiving() ? label[cnt % 2] : label[0]);
+                                                            // show heart beat
   LCD1( lcd, 10, 3, preset + 1  );                          // show preset on LCD
   LCD1( lcd, 18, 3, 100 - volume);                          // show volume on LCD
 
-  if ( len > 0) {
+  if ( len > 0) {                                           // if info > lcd width
     LCD1( lcd,  0, 1, fill( radio.getType() + minMax( cnt - 2, 0, len), 20));
-  }
+  }                                                         // scroll station info
 
-
-  cnt %= ( len + 4); cnt++;
-  //cnt += 1;
+  cnt %= ( len + 4); cnt++;                                 // heart beat count
 }
