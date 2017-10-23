@@ -313,7 +313,7 @@ void showStatus()
   LCD1( lcd, 18, 3, 100 - volume);                          // show volume on LCD
 
   if ( len > 0) {                                           // if info > lcd width
-    LCD1( lcd,  0, 1, fill( radio.getType() + minMax( cnt - 2, 0, len), 20));
+    LCD1( lcd,  0, 1, fill( radio.getInfo() + minMax( cnt - 2, 0, len), 20));
   }                                                         // scroll station info
 
   cnt %= ( len + 4); cnt++;                                 // heart beat count
