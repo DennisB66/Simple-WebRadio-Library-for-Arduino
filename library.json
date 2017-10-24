@@ -1,7 +1,7 @@
 {
   "name": "Simple-WebRadio-Library-for-Arduino",
   "keywords": "radio",
-  "description": "Library for an Arduino based webradio playing ICYcast streams",
+  "description": "Library for an Arduino based webradio playing ICEcast streams",
   "repository":
   {
     "type": "git",
@@ -16,7 +16,7 @@
       "maintainer": true
     }
   ],
-  "version": "0.5",
+  "version": "0.6",
   "frameworks": "arduino",
   "platforms": "*"
 }
