@@ -6,3 +6,4 @@ Dependencies:
 - Arduino-LiquidCrystal-I2C-library (https://github.com/fdebrabander/Arduino-LiquidCrystal-I2C-library)
 - Simple-Control-Library-for-Arduino (https://github.com/DennisB66/Simple-Control-Library-for-Arduino)
 - Simple-Util-Library-for-Arduino (https://github.com/DennisB66/Simple-Util-Library-for-Arduino)
+
