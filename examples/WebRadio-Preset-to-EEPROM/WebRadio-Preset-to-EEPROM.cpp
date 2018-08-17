@@ -5,11 +5,6 @@
 #include "SimpleUtils.h"
 #include "SimplePrint.h"
 
-#include <Ethernet.h>
-#include <VS1053.h>
-#include <SPI.h>
-#include <TimerOne.h>
-
 const PresetInfo presetList[RADIO_PRESET_MAX] = {
   { "icecast.omroep.nl/radio1-bb-mp3",            {   0,   0,   0,   0}, 80 },
   { "icecast.omroep.nl/radio2-bb-mp3",            {   0,   0,   0,   0}, 80 },
@@ -47,11 +42,12 @@ void EEPROM2Preset()
 void setup()
 {
   Serial.begin( 9600);    				// Start serial port with 57600 bits per seconds
-  PRINT( F( "-------------------------------------")) LF;
-  PRINT( F( "- Arduino WebRadio Preset to EEPROM -")) LF;
-  PRINT( F( "-------------------------------------")) LF;
+  PRINT( F( "--------------------------------------")) LF;
+  PRINT( F( "-  Arduino WebRadio Preset to EEPROM -")) LF;
+  PRINT( F( "-  V0.6                  (DennisB66) -")) LF;
+  PRINT( F( "--------------------------------------")) LF;
 
-  TRACE(sizeof(presetList[0].ip4)) LF;
+  LABEL( F( "> Preset size ="), sizeof( presetList[ 0])) LF;
 
   preset2EEPROM();
 
@@ -59,12 +55,12 @@ void setup()
 
   EEPROM2Preset();
 
-  VALUE( F( "Preset"), preset) LF;
-  VALUE( F( "Volume"), volume) LF;
+  LABEL( F( "> Preset"), preset) LF;
+  LABEL( F( "> Volume"), volume) LF;
 
   for ( int i = 0; i < RADIO_PRESET_MAX; i++) {
-    VALUE( F( "Preset url"), presetList[ i].url);
-    VALUE( F( "Preset ip") , presetList[ i].ip4); LF;
+    LABEL( F( "> Preset url"), presetList[ i].url);
+    LABEL( F( " at") , presetList[ i].ip4); LF;
   }
 }
 

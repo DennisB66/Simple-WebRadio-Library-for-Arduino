@@ -24,7 +24,7 @@
 #define PRESET_SIZE_LENGTH   8                              // max size length
 #define PRESET_META_LENGTH 128                              // max name length
 
-#define ICY_BUFF_SIZE      400                              // play buffer length.
+#define ICY_BUFF_SIZE      600                              // play buffer length
 
 struct PresetInfo {
   char      url[PRESET_PATH_LENGTH];                        // preset HTTP url

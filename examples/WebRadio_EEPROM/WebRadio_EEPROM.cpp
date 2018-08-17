@@ -4,7 +4,7 @@
 #include "LiquidCrystal_I2C.h"
 #include "SimpleWebRadio.h"
 #include "SimpleControl.h"
-#include "SimpleWebServer.h"
+
 #include "SimpleUtils.h"
 #include "SimplePrint.h"
 
@@ -21,47 +21,44 @@ byte subnet[]  = { 255, 255, 255,   0 };                    // subnet mask
 byte DNS[]     = {   8,   8,   8,   8 };                    // DNS server (Google)
 
 SimpleRadio       radio;                                    // radio     object  (to play ICYcast streams)
-SimpleWebServer   server( 80);                              // server    object (to respond on API calls)
 SimpleScheduler   scheduler( 1000);                         // scheduler object (to process rotary + button handling)
 SimpleButton      button( A0, false);                       // button    object (to switch between preset + volume setting)
 SimpleRotary      rotary( A1, A2);                          // rotary    object (to change preset + volume)
 LiquidCrystal_I2C lcd( 0x3F, 20, 4);
-
 PresetInfo presetData;                                      // preset    object (to hold station url or IP data)
 byte       preset =  6;                                     // current preset playing
 byte       volume = 70;                                     // current volume playing
-byte       state  = RADIO_PLAY;
+byte       state  = RADIO_STOP;                             // start in silent mode
 
 void loadSettings();                                        // load preset + volume from EEPROM
 void saveSettings();                                        // save preset + volume to   EEPROM
-void hndlPlayer();
-void hndlDevice();
-void hndlServer();
+void hndlPlayer();                                          // feed music player (vs1053b)
+void hndlDevice();                                          // read input device (rotary + button)
+
 bool copyPreset( char*);                                    // copy url to presetData (but not to EEPROM)
 bool loadPreset( int i);                                    // load presetData from EEPROM slot i
 bool savePreset( int i, char* = NULL);                      // save presetData to   EERPOM slot i
-void initStatus();                                          //
-void showStatus();                                          // show preset + volume (on lcd)
+void initStatus();                                          // static info on lcd screen
+void showStatus();                                          // update info on lcd screen
 
 void setup()
 {
 	BEGIN( 9600);                                             // Serial at 9600
 
   #ifdef VERBOSE_MODE
-  PRINT( F( "# ---------------------")) LF;                 // show header
-	PRINT( F( "# - Arduino WebRadio  -")) LF;
-  PRINT( F( "# ---------------------")) LF;
+  PRINT( F( "# ----------------------")) LF;                // show header
+	PRINT( F( "# -  Arduino WebRadio  -")) LF;
+  PRINT( F( "# -  V0.7 (DennisB66)  -")) LF;
+  PRINT( F( "# ----------------------")) LF;
   PRINT( F( "#")) LF;
   #endif
 
   Ethernet.begin( macaddr, iplocal, DNS, gateway, subnet);  // start ethernet
 
-  server.begin();                                           // start webserver
-
   loadSettings();                                           // load preset + volume from EEPROM
   loadPreset( preset);                                      // load presetData from EEPROM slot preset
 
-  #ifdef DEBUG_MODE
+  #ifdef VERBOSE_MODE
   PRINT( F( "# client hosted at ")); PRINT( Ethernet.localIP()) LF;
   LABEL( F( "# preset"), preset);
   LABEL( F( " / volume"), volume);
@@ -73,40 +70,36 @@ void setup()
   radio.setPlayer( 2, 6, 7, 8);                             // initialize MP3 player
   radio.setVolume( volume);                                 // set volume of player
 
-  rotary.setMinMax( 0, RADIO_PRESET_MAX - 1, true);               // set rotary boundaries
+  rotary.setMinMax( 0, RADIO_PRESET_MAX - 1, true);         // set rotary boundaries
   rotary.setPosition( preset);                              // set rotary to preset
 
   scheduler.start();                                        // start checking ratary & button action
 
-  lcd.begin();
-  lcd.backlight();
+  initScreen();                                             // static info on lcd screen
+  nextScreen();                                             // update info on lcd screen
 
-  initStatus();
-  showStatus();                                             // show preset + volume
-
-  #ifdef DEBUG_MODE
+  #ifdef VERBOSE_MODE
   PRINT( F( "# click button to switch on")) LF;
   #endif
 }
 
 void loop()
 {
-  static Stopwatch save( 9000, saveSettings);
-  static Stopwatch disp(  500, showStatus);
+  static Stopwatch save( 10000, saveSettings);               // update EEPROM every  10 sec
+  static Stopwatch disp(   500, showStatus);                 // update screen every 500 msec
 
   switch ( state) {
-    case RADIO_PLAY:
+    case RADIO_PLAY:                                         // play station
       hndlPlayer();
       break;
-    case RADIO_STOP:
+    case RADIO_STOP:                                         // stop playing
       break;
   }
 
-  hndlDevice();
-  hndlServer();
+  hndlDevice();                                              // read input device (rotary + button)
 
-  save.check();
-  disp.check();
+  save.check();                                              // check if EEPROM needs update
+  disp.check();                                              // check if screen needs update
 }
 
 void hndlPlayer()
@@ -124,7 +117,7 @@ void hndlPlayer()
 
 void hndlDevice()
 {
-  static bool mode = 0;
+  static bool mode = 0;                                     // 0 = change station / 1 = change volume
 
   if ( button.available()) {                                // if button processed
     switch ( button.read()) {                               // read button value
@@ -164,55 +157,6 @@ void hndlDevice()
       radio.setVolume( volume);                             // read rotary position
       break;
     }
-  }
-}
-
-void hndlServer()
-{
-  if ( server.available()) {                                // check incoming HTTP request
-    int  code = 400;                                        // default return code = error
-
-    char* chn = server.path( 1);                            // get preset id     (if present)
-    char* url = server.arg( "url");                         // get preset url    (if present)
-    char* vol = server.arg( "volume");                      // get player volume (if present)
-
-    if (  server.path( 0, "presets")) {                     // if presets addressed
-      if (( server.method() == HTTP_PUT) && chn && url) {
-        savePreset( atoi( chn) - 1, url);                   // save url in EEPROM
-        code = 200;
-      }
-    }
-
-    if (  server.path( 0, "webradio")) {                    // if player addressed
-      if (( server.method() == HTTP_GET) && !chn && url) {
-        copyPreset( url);                                   // load url (but don't store in EEPROM)
-        code = 200;
-      }
-
-      if (( server.method() == HTTP_GET) && chn && !url) {
-        loadPreset( preset = atoi( chn) - 1);               // load preset from EEPROM
-        code = 200;
-      }
-
-      if (( server.method() == HTTP_GET) && vol) {
-        radio.setVolume( volume = 100 - atoi( vol));        // set player volume
-        code = 200;
-      }
-
-      if (( server.method() == HTTP_GET) && server.arg( "play")) {
-        initStatus();
-        radio.stopICYcastStream();
-        radio.openICYcastStream( &presetData);              // play url in memory
-        code = 200;
-      }
-
-      if (( server.method() == HTTP_GET) && server.arg( "stop")) {
-        radio.stopICYcastStream();                          // stop player
-        code = 200;
-      }
-    }
-
-    server.response( code);                                 // return response (headers + code)
   }
 }
 
@@ -277,6 +221,8 @@ bool savePreset( int preset, char* url)
 // initialize lcd
 void initStatus()
 {
+  lcd.begin();                                              // initialize lcd
+
   LCD1( lcd,  0,  0, fill( "< ---------- >", 20, true));    // show empty name
   LCD1( lcd,  0,  1, fill( ""              , 20, true));    // show empty info
   LCD1( lcd,  4,  2, F( "Bit Rate" ));                      // show bit rate
@@ -288,8 +234,8 @@ void initStatus()
 void showStatus()
 {
   static char label[2] = { ' ', '-'};                       // heart beat symbols
-  static int  cnt = 0;
-  static int  len = 0;
+  static int  cnt = 0;                                      // info field scroll position
+  static int  len = 0;                                      // info field scroll size
 
   if ( radio.available()) {                                 // if playing
     LCD1( lcd,  0, 0, fill( radio.getName(), 20, true));    // show station name
@@ -302,7 +248,7 @@ void showStatus()
     LABEL( F(  " rate"), radio.getRate()); LF;
     #endif
 
-    len = max( 0, strlen( radio.getInfo()) - 20);
+    len = max( 0, strlen( radio.getInfo()) - 20);           // info field display scroll size
   }
 
   LCD1( lcd,  2, 2, radio.receiving() ? label[cnt % 2] : label[0]);
@@ -311,9 +257,9 @@ void showStatus()
   LCD1( lcd, 10, 3, preset + 1  );                          // show preset on LCD
   LCD1( lcd, 18, 3, 100 - volume);                          // show volume on LCD
 
-  if ( len > 0) {                                           // if info > lcd width
+  if ( len > 0) {                                           // if scrolling needed
     LCD1( lcd,  0, 1, fill( radio.getInfo() + minMax( cnt - 2, 0, len), 20));
   }                                                         // scroll station info
 
-  cnt %= ( len + 4); cnt++;                                 // heart beat count
+  cnt %= ( len + 4); cnt++;                                 // update scroll postion
 }
