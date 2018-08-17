@@ -75,8 +75,8 @@ void setup()
 
   scheduler.start();                                        // start checking ratary & button action
 
-  initScreen();                                             // static info on lcd screen
-  nextScreen();                                             // update info on lcd screen
+  initStatus();                                             // static info on lcd screen
+  showStatus();                                             // update info on lcd screen
 
   #ifdef VERBOSE_MODE
   PRINT( F( "# click button to switch on")) LF;
